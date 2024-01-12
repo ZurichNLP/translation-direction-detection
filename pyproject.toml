@@ -1,0 +1,28 @@
+[project]
+name = "translation_direction_detection"
+version = "0.0.1"
+authors = [
+  { name="Michelle Wastl", email="michelle.wastl@uzh.ch" },
+  { name="Jannis Vamvas", email="vamvas@cl.uzh.ch" },
+  { name="Rico Sennrich", email="sennrich@cl.uzh.ch" },
+]
+description = "Unsupervised translation direction detection using NMT systems"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "transformers<4.34",  # https://github.com/ZurichNLP/nmtscore/issues/7
+    "nmtscore",
+    "scipy",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ZurichNLP/translation-direction-detection"
+"Bug Tracker" = "https://github.com/ZurichNLP/translation-direction-detection/issues"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

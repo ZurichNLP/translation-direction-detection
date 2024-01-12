@@ -1,0 +1,2 @@
+git+https://github.com/mjpost/sacrebleu.git
+datasets==2.16.1
