@@ -3,7 +3,7 @@
 
 This repository contains the code for the paper "Machine Translation Models are Zero-Shot Detectors of Translation Direction".
 
-**Paper: [http://arxiv.org/abs/2401.06769](http://arxiv.org/abs/2401.06769)**
+**Paper: [http://arxiv.org/abs/2401.06769](http://arxiv.org/abs/2401.06769)**  
 **Demo: [https://huggingface.co/spaces/ZurichNLP/translation-direction-detection](https://huggingface.co/spaces/ZurichNLP/translation-direction-detection)**
 
 ## Installation
