@@ -8,7 +8,7 @@ authors = [
 ]
 description = "Unsupervised translation direction detection using NMT systems"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.8"
 dependencies = [
     "transformers<4.34",  # https://github.com/ZurichNLP/nmtscore/issues/7
     "nmtscore",
