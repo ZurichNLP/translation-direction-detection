@@ -251,7 +251,12 @@ def load_flores_dataset(lang_pair: str, type: str) -> TranslationDataset:
         "uk": "ukr_Cyrl",
         "de": "deu_Latn",
         "fr": "fra_Latn",
-    }
+        "zu": "zul_Latn",
+        "xh": "xho_Latn",
+        "hi": "hin_Deva",
+        "bn": "ben_Beng",
+           }
+
     src_lang_code = lang_code[src_lang]
     tgt_lang_code = lang_code[tgt_lang]
     lang_pair_code = "-".join([src_lang_code, tgt_lang_code])
@@ -299,15 +304,11 @@ def load_all_datasets() -> List[TranslationDataset]:
         for lang_pair in ["cs-uk", "en-cs", "en-ru", "en-uk", "en-zh", "ru-en", "uk-en", "zh-en"]:
             datasets.append(load_wmt21_23_dataset("wmt23", lang_pair, type))
 
-    # WMT/Flores (both sides are translations from English – translations are not direct between the pair)
+    # Flores (both sides are translations from English – translations are not direct between the pair)
     indirect_datasets = []
-    lo_res_pairs = ["bn-hi", "hi-bn", "xh-zu", "zu-xh"]
-    for type in ["ht", "nmt"]:
-        for lang_pair in lo_res_pairs:
-            indirect_datasets.append(load_wmt21_23_dataset("wmt21", lang_pair, type))
-        if type == "ht":
-          for lang_pair in ["cs-uk", "de-fr"]:
-            indirect_datasets.append(load_flores_dataset(lang_pair, type))
+    lo_res_pairs = ["bn-hi", "hi-bn", "xh-zu", "zu-xh", "cs-uk", "de-fr"]
+    for lang_pair in lo_res_pairs:
+        indirect_datasets.append(load_flores_dataset(lang_pair, "ht"))
     for dataset in indirect_datasets:
         dataset.is_indirect = True
     datasets += indirect_datasets
