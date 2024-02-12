@@ -34,13 +34,8 @@ for lang_pair in LANG_PAIRS:
     forward_accuracy = evaluate_sentence_level(detector, forward_datasets)
     forward_accuracies.append(forward_accuracy)
     backward_datasets = [dataset for dataset in datasets if dataset.translation_direction == f"{lang2}→{lang1}"]
-    if lang_pair in ["bn-hi", "xh-zu"]:
-        backward_accuracy = evaluate_sentence_level(detector, backward_datasets)
-    else:
-        backward_accuracy = 100-forward_accuracy 
+    backward_accuracy = 100-forward_accuracy 
     backward_accuracies.append(backward_accuracy)
-    #avg_accuracy = (forward_accuracy + backward_accuracy) / 2
-    #avg_accuracies.append(avg_accuracy)
 print()
 
 print(r"\begin{tabular}{lcc}")
@@ -51,16 +46,9 @@ print(r"\midrule")
 for i, lang_pair in enumerate(LANG_PAIRS):
     print(lang_pair.replace("-", "\\biarrow ") + " & ", end="")
     print(f"{forward_accuracies[i]:.2f} & ", end="")
-#    print(f"{backward_accuracies[i]:.2f} & ", end="")
     print(f"{backward_accuracies[i]:.2f} \\\\ ", end="")
-#    print(f"{avg_accuracies[i]:.2f} \\\\", end="")
     print()
 
-#print(r"\addlinespace")
-#print(r"Macro-Avg. & ", end="")
-#print(f"{np.mean(forward_accuracies):.2f} & ", end="")
-#print(f"{np.mean(backward_accuracies):.2f} & ", end="")
-#print(f"{np.mean(avg_accuracies):.2f} \\\\", end="")
-#print()
+
 print(r"\bottomrule")
 print(r"\end{tabular}")
