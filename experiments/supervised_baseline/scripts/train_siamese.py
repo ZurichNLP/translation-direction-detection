@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser()
 parser.add_argument('accelerator', type=str, help='Choice of accelerator either "cpu" for CPU or "cuda:[0-5]"')
 parser.add_argument('--epochs', type=int, default=5, help='Choose number of epochs, e.g.: 3, 5 or 10')
-#parser.add_argument('--lr', type=float, default=2e-5, help='Choose a learning rate, e.g.: 1e-5, 2e-5 or 3e-5')
+parser.add_argument('--lr', type=float, default=2e-5, help='Choose a learning rate, e.g.: 1e-5, 2e-5 or 3e-5')
 parser.add_argument('--batch_size', type=int, default=16, help='Choose a batch size, e.g.: 4, 8 or 16')
 parser.add_argument('--train_type', nargs='+', default=['ht', 'nmt'], help='Choose translation type of the training data, e.g.: ht nmt or ht')
 args = parser.parse_args()
@@ -36,7 +36,7 @@ else:
     print('No GPU available, using the CPU instead.')
     device = torch.device("cpu")
 
-#print(f'Learning rate is {args.lr}.')
+print(f'Learning rate is {args.lr}.')
 print(f'Number of epochs are {args.epochs}.')
 print(f'Batch size is {args.batch_size}')
 print(f'Training data type: {args.train_type}')
@@ -160,11 +160,11 @@ sum_examples = 0
 for type in args.train_type:
     for lang_pair in ["cs-en", "de-en", "en-cs", "en-de", "en-ru", "ru-en"]:
         ds = load_wmt16_dataset(lang_pair, type)
-        datasets.append(ds)
         if ds.num_examples > 1500:
             random.shuffle(ds.examples)
             ds.examples = ds.examples[:1500]
         sum_examples += ds.num_examples
+        datasets.append(ds)
         print(f'{ds.translation_direction}-{type}: {ds.num_examples}')
 print(f'sum of examples: {sum_examples}')
 
@@ -209,7 +209,7 @@ training_args = TrainingArguments(
     f'experiments/supervised_baseline/models/checkpoints/siamese_{"-".join(args.train_type)}', 
     evaluation_strategy='no',
     save_strategy='epoch',       
-    #learning_rate=args.lr, 
+    learning_rate=args.lr, 
     num_train_epochs=args.epochs,
     per_device_train_batch_size=args.batch_size,
     weight_decay=0.01,       
