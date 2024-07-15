@@ -35,7 +35,7 @@ for type in ['ht', 'nmt', 'pre-nmt']:
     for wmt in ["wmt16", "wmt21", "wmt22", "wmt23"]:
         for lang_pair in LANG_PAIRS: 
             if type != 'pre-nmt':
-                if wmt in ["wmt21", "wmt22", "wmt23"] and not ((lang_pair == "de-en" and wmt == "wmt23") or (lang_pair == "cs-en" and wmt == "wmt23")):
+                if wmt in ["wmt21", "wmt22", "wmt23"] and not ((lang_pair == "de-en" and wmt == "wmt23") or (lang_pair == "cs-en" and wmt == "wmt23") or (lang_pair == "en-de" and wmt == "wmt23")):
                     datasets.append(load_wmt21_23_dataset(wmt, lang_pair, type))
             elif wmt == "wmt16" and type == 'pre-nmt':
                 datasets.append(load_wmt16_dataset(lang_pair, type))
