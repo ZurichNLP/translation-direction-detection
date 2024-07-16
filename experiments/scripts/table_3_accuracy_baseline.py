@@ -8,14 +8,18 @@ from pathlib import Path
 method = sys.argv[1] 
 checkpoint_dir = sys.argv[2]
 
+'''
+siamese_ht-nmt/checkpoint-1815
+'''
+
 os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "cached_scores").absolute())
 
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
 # load results
 for dir in os.listdir(os.environ["NMTSCORE_CACHE"]):
-    if dir not in ['.empty', '__pycache__']:
-        result_path = os.path.join(os.environ["NMTSCORE_CACHE"], dir, f'baseline_{"_".join(checkpoint_dir.split("/")[-2:])}.csv')
+    if dir not in ['.empty', '__pycache__', 'junk.py']:
+        result_path = os.path.join(os.environ["NMTSCORE_CACHE"], dir, f'baseline_{"_".join(checkpoint_dir.split("/"))}.csv')
         result_shard = pd.read_csv(result_path)
         results = pd.concat([results, result_shard], ignore_index=True)
 
@@ -53,7 +57,7 @@ for t in ['ht', 'nmt', 'pre-nmt']:
             ht_accuracies['forward'].append(forward_accuracy)
         elif t == 'nmt':
             nmt_accuracies['forward'].append(forward_accuracy)
-        else:
+        elif t == 'pre-nmt':
             pre_nmt_accuracies['forward'].append(forward_accuracy)
         backwards_result = results.loc[(results['gold_label'] == f"{lang2}→{lang1}") & (results['type'] == t)]
         if len(backwards_result.index) > 0:
@@ -64,14 +68,14 @@ for t in ['ht', 'nmt', 'pre-nmt']:
             ht_accuracies['backward'].append(backward_accuracy)
         elif t == 'nmt':
             nmt_accuracies['backward'].append(backward_accuracy)
-        else:
+        elif t == 'pre-nmt':
             pre_nmt_accuracies['backward'].append(backward_accuracy)
         avg_accuracy = (forward_accuracy + backward_accuracy) / 2
         if t == 'ht':
             ht_accuracies['average'].append(avg_accuracy)
         elif t == 'nmt':
             nmt_accuracies['average'].append(avg_accuracy)
-        else:
+        elif t == 'pre-nmt':
             pre_nmt_accuracies['average'].append(avg_accuracy)
     print()
 

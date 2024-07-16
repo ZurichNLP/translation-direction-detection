@@ -1,30 +1,24 @@
-from transformers import XLMRobertaTokenizer, XLMRobertaForSequenceClassification, TrainingArguments, Trainer
-from transformers import modeling_outputs
+from transformers import XLMRobertaTokenizer, TrainingArguments, Trainer
 from torch.utils.data import Dataset
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from typing import List, Optional, Tuple, Union
 import torch
 import random
 import logging
 import argparse
 
-# Replace with actual dataset loading function
-from experiments.datasets import load_wmt16_dataset
+from experiments.datasets import load_wmt16_dataset, TranslationDataset
+from experiments.supervised_baseline.scripts.model import CustomXLMRobertaForSequenceClassification, load_train_val_split, set_seed
 
 logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('accelerator', type=str, help='Choice of accelerator either "cpu" for CPU or "cuda:[0-5]"')
+parser.add_argument('lang_pair', type=str, help='Choose language pair to train on from "cs-en", "de-en" and "ru-en".')
 parser.add_argument('--epochs', type=int, default=5, help='Choose number of epochs, e.g.: 3, 5 or 10')
 parser.add_argument('--lr', type=float, default=2e-5, help='Choose a learning rate, e.g.: 1e-5, 2e-5 or 3e-5')
 parser.add_argument('--batch_size', type=int, default=16, help='Choose a batch size, e.g.: 4, 8 or 16')
 parser.add_argument('--train_type', nargs='+', default=['ht', 'nmt'], help='Choose translation type of the training data, e.g.: ht nmt or ht')
 args = parser.parse_args()
-
-def set_seed(seed):
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
 
 set_seed(42)
 
@@ -79,94 +73,31 @@ def collate_fn(batch):
         'labels': labels
     }
 
-class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassification):
-    def forward(
-        self,
-        input_ids1: Optional[torch.LongTensor] = None,
-        attention_mask1: Optional[torch.FloatTensor] = None,
-        input_ids2: Optional[torch.LongTensor] = None,
-        attention_mask2: Optional[torch.FloatTensor] = None,
-        token_type_ids1: Optional[torch.LongTensor] = None,
-        token_type_ids2: Optional[torch.LongTensor] = None,
-        position_ids1: Optional[torch.LongTensor] = None,
-        position_ids2: Optional[torch.LongTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[torch.Tensor], modeling_outputs.SequenceClassifierOutput]:
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        outputs1 = self.roberta(
-            input_ids1,
-            attention_mask=attention_mask1,
-            token_type_ids=token_type_ids1,
-            position_ids=position_ids1,
-        )
-        sequence_output1 = outputs1.last_hidden_state  # or maybe pooled output?
-
-        outputs2 = self.roberta(
-            input_ids2,
-            attention_mask=attention_mask2,
-            token_type_ids=token_type_ids2,
-            position_ids=position_ids2,
-        )
-        sequence_output2 = outputs2.last_hidden_state  # or maybe pooled output?
-
-        assert sequence_output1.shape == sequence_output2.shape, \
-            f"Shape mismatch: {sequence_output1.shape} vs {sequence_output2.shape}"
-
-        combined_representation = sequence_output1 + sequence_output2
-
-        logits = self.classifier(combined_representation)
-
-        loss = None
-        if labels is not None:
-            labels = labels.to(logits.device)
-            if self.config.problem_type is None:
-                if self.num_labels == 1:
-                    self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
-                    self.config.problem_type = "single_label_classification"
-                else:
-                    self.config.problem_type = "multi_label_classification"
-
-            if self.config.problem_type == "regression":
-                loss_fct = MSELoss()
-                if self.num_labels == 1:
-                    loss = loss_fct(logits.squeeze(), labels.squeeze())
-                else:
-                    loss = loss_fct(logits, labels)
-            elif self.config.problem_type == "single_label_classification":
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            elif self.config.problem_type == "multi_label_classification":
-                loss_fct = BCEWithLogitsLoss()
-                loss = loss_fct(logits, labels)
-
-        if not return_dict:
-            output = (logits,) + outputs1[2:] + outputs2[2:]
-            return ((loss,) + output) if loss is not None else output
-
-        return modeling_outputs.SequenceClassifierOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=(sequence_output1, sequence_output2),
-            attentions=None,
-        )
 
 # load data
 logging.info("Loading datasets...")
 datasets = []
-sum_examples = 0
-for type in args.train_type:
-    for lang_pair in ["cs-en", "de-en", "en-cs", "en-de", "en-ru", "ru-en"]:
-        ds = load_wmt16_dataset(lang_pair, type)
-        if ds.num_examples > 1500:
-            random.shuffle(ds.examples)
-            ds.examples = ds.examples[:1500]
-        sum_examples += ds.num_examples
-        datasets.append(ds)
+sum_examples_train = 0
+sum_examples_val = 0
+lang_pairs = {
+    "cs-en": ["cs-en", "en-cs"],
+    "de-en": ["de-en", "en-de"],
+    "en-cs": ["cs-en", "en-cs"],
+    "en-de": ["de-en", "en-de"],
+    "en-ru": ["en-ru", "ru-en"],
+    "ru-en": ["en-ru", "ru-en"],
+}
+for type in args.train_type + ['pre-nmt']:
+    for lp in lang_pairs[args.lang_pair]:
+        ds = load_wmt16_dataset(lp, type)
+        train_set = load_train_val_split(ds, lp, split_type='train', translation_type=type) if type != 'pre-nmt' else None
+        val_set = load_train_val_split(ds, lp, split_type='val', translation_type=type)
+        sum_examples_train += train_set.num_examples if type != 'pre-nmt' else 0
+        sum_examples_val += val_set.num_examples 
+        datasets.append(train_set) if train_set else None
         print(f'{ds.translation_direction}-{type}: {ds.num_examples}')
-print(f'sum of examples: {sum_examples}')
+print(f'sum of training examples: {sum_examples_train}')
+print(f'sum of validation examples: {sum_examples_val}')
 
 
 # preprocess
@@ -206,7 +137,7 @@ tokenized_data_ref = tokenizer(ref_side, truncation=True, padding='max_length', 
 training_data = CustomDataset(tokenized_data_src, tokenized_data_ref, labels)
 
 training_args = TrainingArguments(
-    f'experiments/supervised_baseline/models/checkpoints/siamese_{"-".join(args.train_type)}', 
+    f'experiments/supervised_baseline/models/checkpoints_{args.lang_pair}/siamese_{"-".join(args.train_type)}', 
     evaluation_strategy='no',
     save_strategy='epoch',       
     learning_rate=args.lr, 
