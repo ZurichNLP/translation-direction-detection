@@ -6,8 +6,7 @@ import random
 import logging
 import argparse
 
-from experiments.datasets import load_wmt16_dataset, TranslationDataset
-from experiments.supervised_baseline.scripts.model import CustomXLMRobertaForSequenceClassification, load_train_val_split, set_seed
+from experiments.supervised_baseline.scripts.model import CustomXLMRobertaForSequenceClassification, load_split, set_seed
 
 logging.basicConfig(level=logging.INFO)
 
@@ -89,15 +88,10 @@ lang_pairs = {
 }
 for type in args.train_type + ['pre-nmt']:
     for lp in lang_pairs[args.lang_pair]:
-        ds = load_wmt16_dataset(lp, type)
-        train_set = load_train_val_split(ds, lp, split_type='train', translation_type=type) if type != 'pre-nmt' else None
-        val_set = load_train_val_split(ds, lp, split_type='val', translation_type=type)
+        train_set = load_split(lp, split_type='train', translation_type=type, wmt_type='wmt16') if type != 'pre-nmt' else None
         sum_examples_train += train_set.num_examples if type != 'pre-nmt' else 0
-        sum_examples_val += val_set.num_examples 
         datasets.append(train_set) if train_set else None
-        print(f'{ds.translation_direction}-{type}: {ds.num_examples}')
 print(f'sum of training examples: {sum_examples_train}')
-print(f'sum of validation examples: {sum_examples_val}')
 
 
 # preprocess

@@ -9,7 +9,7 @@ import numpy as np
 from pathlib import Path
 
 from experiments.datasets import load_wmt21_23_dataset, load_wmt16_dataset
-from experiments.supervised_baseline.scripts.model import CustomXLMRobertaForSequenceClassification, load_train_val_split
+from experiments.supervised_baseline.scripts.model import CustomXLMRobertaForSequenceClassification, load_split
 
 shard = sys.argv[1]
 assert int(shard) in range(12)
@@ -44,21 +44,20 @@ results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', '
 datasets = []
 if split == 'test':
     for type in ['ht', 'nmt', 'pre-nmt']:
+        # TODO: change according to new split loading function
         for wmt in ["wmt16", "wmt21", "wmt22", "wmt23"]:
             for lang_pair in LANG_PAIRS: 
                 if type != 'pre-nmt':
                     if wmt in ["wmt21", "wmt22", "wmt23"] and not ((lang_pair == "de-en" and wmt == "wmt23") or (lang_pair == "cs-en" and wmt == "wmt23") or (lang_pair == "en-de" and wmt == "wmt23")):
-                        datasets.append(load_wmt21_23_dataset(wmt, lang_pair, type))
+                        datasets.append(load_split(lang_pair, split_type=split, translation_type=type, wmt_type=wmt))
                 elif wmt == "wmt16" and type == 'pre-nmt':
-                    ds = load_wmt16_dataset(lang_pair, type)
-                    datasets.append(load_train_val_split(ds, lang_pair, split_type=split, translation_type=type))
+                    datasets.append(load_split(lang_pair, split_type=split, translation_type=type, wmt_type=wmt))
 elif split == 'val':
-    for type in ['ht', 'nmt', 'pre-nmt']:
+    for type in ['ht', 'nmt']:
         for lang_pair in LANG_PAIRS: 
-            ds = load_wmt16_dataset(lang_pair, type)
-            val_set = load_train_val_split(ds, lang_pair, split_type=split, translation_type=type)
+            val_set = load_split(lang_pair, split_type=split, translation_type=type, wmt_type='wmt21')
             datasets.append(val_set) if val_set else None
-            print(f'{ds.translation_direction}-{type}-{split}: {val_set.num_examples}')
+            print(f'{val_set.translation_direction}-{type}-{split}: {val_set.num_examples}')
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

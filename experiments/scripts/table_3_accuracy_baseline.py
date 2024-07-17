@@ -96,11 +96,11 @@ Macro-Avg. & tba & tba & tba & tba & tba & tba & tba & tba & tba \\
 \end{tabular}
 \end{tabular}
 """
-print(r'\begin{tabular}{cccccccccc}')
+print(r'\begin{tabular}{ccccccc}')#ccc}')
 print(r'\toprule')
-print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT} & \multicolumn{3}{c}{Pre-NMT}  \\' )
-print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}')
-print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg.  & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
+print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}  \\' )# & \multicolumn{3}{c}{Pre-NMT}  \\' )
+print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}') #\cmidrule(lr){8-10}')
+print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')#  & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
 print(r'\midrule')
 
 for i, lang_pair in enumerate(LANG_PAIRS):
@@ -112,9 +112,9 @@ for i, lang_pair in enumerate(LANG_PAIRS):
     print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
     print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
     print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
-    print(f"{pre_nmt_accuracies['backward'][i]:.2f} & ", end="")
-    print(f"{pre_nmt_accuracies['forward'][i]:.2f} & ", end="")
-    print(f"{pre_nmt_accuracies['average'][i]:.2f} \\\\", end="")
+    # print(f"{pre_nmt_accuracies['backward'][i]:.2f} & ", end="")
+    # print(f"{pre_nmt_accuracies['forward'][i]:.2f} & ", end="")
+    # print(f"{pre_nmt_accuracies['average'][i]:.2f} \\\\", end="")
     print()
 
 print(r"\addlinespace")
@@ -125,9 +125,9 @@ print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
 print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
 print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
 print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
-print(f"{np.mean(pre_nmt_accuracies['backward']):.2f} & ", end="")
-print(f"{np.mean(pre_nmt_accuracies['forward']):.2f} & ", end="")
-print(f"{np.mean(pre_nmt_accuracies['average']):.2f} \\\\", end="")
+# print(f"{np.mean(pre_nmt_accuracies['backward']):.2f} & ", end="")
+# print(f"{np.mean(pre_nmt_accuracies['forward']):.2f} & ", end="")
+# print(f"{np.mean(pre_nmt_accuracies['average']):.2f} \\\\", end="")
 print()
 print(r"\bottomrule")
 print(r"\end{tabular}")       

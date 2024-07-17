@@ -7,42 +7,64 @@ from typing import List, Optional, Tuple, Union
 import torch
 import random
 
-from experiments.datasets import load_wmt16_dataset, TranslationDataset
+from experiments.datasets import load_wmt16_dataset, load_wmt21_23_dataset, TranslationDataset
 
 def set_seed(seed):
     random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-def load_train_val_split(dataset, lang_pair, split_type, translation_type):
+def load_split(lang_pair, split_type, translation_type, wmt_type=None):
     set_seed(42)
+
+    if split_type == 'train':
+        dataset = load_wmt16_dataset(lang_pair, translation_type)
+    elif split_type == 'val':
+        dataset = load_wmt21_23_dataset('wmt21', lang_pair, translation_type)
+    else:
+        dataset = load_wmt21_23_dataset(wmt_type, lang_pair, translation_type)
 
     random.shuffle(dataset.examples)
 
-    dataset.examples = dataset.examples[:1500] if dataset.num_examples > 1500 else dataset.examples
+    if split_type == 'val' or split_type == 'test':
+        if wmt_type == 'wmt21':
+            # validation
+            val_set_examples = dataset.examples[:50]
+            val_set = TranslationDataset(
+                name='wmt21',
+                type=translation_type,
+                src_lang=dataset.src_lang,
+                tgt_lang=dataset.tgt_lang,
+                examples=val_set_examples
+            )
 
-    # validation
-    val_set_examples = dataset.examples[:50]
-    val_set = TranslationDataset(
-        name='wmt16',
-        type=translation_type,
-        src_lang=dataset.src_lang,
-        tgt_lang=dataset.tgt_lang,
-        examples=val_set_examples
-    )
-
-    if translation_type == 'pre-nmt':
-        test_set_examples = dataset.examples[50:]
+        """
+        if translation_type == 'pre-nmt':
+            test_set_examples = dataset.examples[50:]
+            test_set = TranslationDataset(
+                name='wmt16',
+                type=translation_type,
+                src_lang=dataset.src_lang,
+                tgt_lang=dataset.tgt_lang,
+                examples=test_set_examples
+            )
+        """
+        # testing
+        assert wmt_type in ["wmt21", "wmt22", "wmt23"]
+        test_set_examples = dataset.examples[50:] if wmt_type in [None, 'wmt21'] else dataset.examples
         test_set = TranslationDataset(
-            name='wmt16',
+            name='wmt21' if wmt_type == None else wmt_type,
             type=translation_type,
             src_lang=dataset.src_lang,
             tgt_lang=dataset.tgt_lang,
             examples=test_set_examples
         )
+
     else:
         # training
-        train_set_examples = dataset.examples[50:]
+        assert wmt_type == 'wmt16'
+        dataset.examples = dataset.examples[:1500] if dataset.num_examples > 1500 else dataset.examples
+        train_set_examples = dataset.examples
         train_set = TranslationDataset(
             name='wmt16',
             type=translation_type,
@@ -55,7 +77,7 @@ def load_train_val_split(dataset, lang_pair, split_type, translation_type):
         return train_set
     elif split_type == 'val':
         return val_set
-    elif split_type == 'test' and translation_type == 'pre-nmt':
+    elif split_type == 'test':
         return test_set
     
 class CustomXLMRobertaClassificationHead(RobertaClassificationHead):
