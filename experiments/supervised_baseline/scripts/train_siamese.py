@@ -137,7 +137,7 @@ tokenized_data_ref = tokenizer(ref_side, truncation=True, padding='max_length', 
 training_data = CustomDataset(tokenized_data_src, tokenized_data_ref, labels)
 
 training_args = TrainingArguments(
-    f'experiments/supervised_baseline/models/checkpoints_{args.lang_pair}/siamese_{"-".join(args.train_type)}', 
+    f'experiments/supervised_baseline/models/checkpoints_{args.lang_pair}_pooler/siamese_{"-".join(args.train_type)}', 
     evaluation_strategy='no',
     save_strategy='epoch',       
     learning_rate=args.lr, 

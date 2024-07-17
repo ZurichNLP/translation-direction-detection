@@ -1,6 +1,7 @@
 
 from transformers import XLMRobertaForSequenceClassification
 from transformers import modeling_outputs
+from transformers.models.roberta.modeling_roberta import RobertaClassificationHead
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from typing import List, Optional, Tuple, Union
 import torch
@@ -56,8 +57,30 @@ def load_train_val_split(dataset, lang_pair, split_type, translation_type):
         return val_set
     elif split_type == 'test' and translation_type == 'pre-nmt':
         return test_set
+    
+class CustomXLMRobertaClassificationHead(RobertaClassificationHead):
+    def __init__(self, config):
+        super().__init__(config)
+        self.dense = torch.nn.Linear(config.hidden_size, config.hidden_size)  # Input size: 3072
+        self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
+        self.out_proj = torch.nn.Linear(config.hidden_size, config.num_labels)
+    
+    def forward(self, features, **kwargs):
+        x = features # since the features are already features[:, 0, :]
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+    
 
 class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassification):
+    def __init__(self, config):
+        super().__init__(config)
+        self.classifier = CustomXLMRobertaClassificationHead(config)
+    
+    
     def forward(
         self,
         input_ids1: Optional[torch.LongTensor] = None,
@@ -79,7 +102,12 @@ class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassificat
             token_type_ids=token_type_ids1,
             position_ids=position_ids1,
         )
-        sequence_output1 = outputs1.last_hidden_state  # or maybe pooled output?
+        # hidden_states1 = outputs1.hidden_states  # last hidden state
+        # hidden_states_tensor1 = torch.stack(hidden_states1, dim=0)
+        # summed_hidden_states1 = hidden_states_tensor1.sum(dim=0)
+        # sequence_output1 = summed_hidden_states1.mean(dim=1) # avg of the hidden states
+        sequence_output1 = outputs1.last_hidden_state[:, 0, :] # pooler output
+
 
         outputs2 = self.roberta(
             input_ids2,
@@ -87,12 +115,21 @@ class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassificat
             token_type_ids=token_type_ids2,
             position_ids=position_ids2,
         )
-        sequence_output2 = outputs2.last_hidden_state  # or maybe pooled output?
-
+        # hidden_states2 = outputs2.hidden_states  # last hidden state
+        # hidden_states_tensor2 = torch.stack(hidden_states2, dim=0)
+        # summed_hidden_states2 = hidden_states_tensor2.sum(dim=0)
+        # sequence_output2 = summed_hidden_states2.mean(dim=1) # avg of the hidden states
+        sequence_output2 = outputs2.last_hidden_state[:, 0, :]  # pooler output
+        
+        #print(sequence_output1.shape, sequence_output2.shape)
         assert sequence_output1.shape == sequence_output2.shape, \
             f"Shape mismatch: {sequence_output1.shape} vs {sequence_output2.shape}"
 
-        combined_representation = sequence_output1 + sequence_output2
+        diff_embs = torch.abs(sequence_output1 - sequence_output2)
+        prod_embs = sequence_output1 * sequence_output2
+        
+        #combined_representation = torch.cat((sequence_output1, sequence_output2, diff_embs, prod_embs), dim=1) # introduces dependence on order?
+        combined_representation = sequence_output1 + sequence_output2 + diff_embs + prod_embs
 
         logits = self.classifier(combined_representation)
 

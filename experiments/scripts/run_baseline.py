@@ -21,7 +21,10 @@ checkpoint = sys.argv[4]
 
 """
 checkpoint for bilingual ht and nmt training:
-'checkpoint-1815'
+'checkpoints_lang1-lang2/checkpoint-1815'
+
+checkpoint for bilingual ht and nmt training with pooler output and comet architecture:
+'checkpoints_lang1-lang2_pooler/checkpoint-1815'
 
 paths to checkpoints:
 'experiments/supervised_baseline/models/checkpoints/concat/checkpoint-5625' for concat and HT training data 
@@ -78,7 +81,7 @@ if method == 'concat':
     model.eval()
 else:
     for lang_pair in ['cs-en', 'ru-en', 'de-en']:
-        checkpoint_dir = f'experiments/supervised_baseline/models/checkpoints_{lang_pair}/siamese_ht-nmt/{checkpoint}'
+        checkpoint_dir = f'experiments/supervised_baseline/models/checkpoints_{lang_pair}_pooler/siamese_ht-nmt/{checkpoint}' # TODO: adapt to desired path to checkpoint
         config = XLMRobertaConfig.from_pretrained(checkpoint_dir)
         tokenizer = XLMRobertaTokenizer.from_pretrained(checkpoint_dir)
         model = CustomXLMRobertaForSequenceClassification.from_pretrained(checkpoint_dir, config=config).to(device)
@@ -184,4 +187,4 @@ for i, dataset in enumerate(datasets):
     
 print(len(results.index))
 
-results.to_csv(os.path.join(os.environ["NMTSCORE_CACHE"], f'baseline_{"_".join(checkpoint_dir.split("/")[-2:])}.csv'))
+results.to_csv(os.path.join(os.environ["NMTSCORE_CACHE"], f'baseline-pooler_{"_".join(checkpoint_dir.split("/")[-2:])}.csv'))

@@ -19,7 +19,7 @@ results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', '
 # load results
 for dir in os.listdir(os.environ["NMTSCORE_CACHE"]):
     if dir not in ['.empty', '__pycache__', 'junk.py']:
-        result_path = os.path.join(os.environ["NMTSCORE_CACHE"], dir, f'baseline_{"_".join(checkpoint_dir.split("/"))}.csv')
+        result_path = os.path.join(os.environ["NMTSCORE_CACHE"], dir, f'baseline-pooler_{"_".join(checkpoint_dir.split("/"))}.csv')
         result_shard = pd.read_csv(result_path)
         results = pd.concat([results, result_shard], ignore_index=True)
 
