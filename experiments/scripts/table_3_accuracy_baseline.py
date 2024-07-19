@@ -5,25 +5,26 @@ import os
 import numpy as np
 from pathlib import Path
 
-method = sys.argv[1] 
 checkpoint_dir = sys.argv[2]
 
 '''
-siamese_ht-nmt/checkpoint-1815
+checkpoint number epoch 2:
+checkpoint number epoch 4:
+checkpoint number epoch 5:
 '''
 
-os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "cached_scores").absolute())
+os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "baseline_validation_scores").absolute())
 
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
 # load results
 for dir in os.listdir(os.environ["NMTSCORE_CACHE"]):
     if dir not in ['.empty', '__pycache__', 'junk.py']:
-        result_path = os.path.join(os.environ["NMTSCORE_CACHE"], dir, f'baseline-pooler_{"_".join(checkpoint_dir.split("/"))}.csv')
+        result_path = os.path.join(os.environ["NMTSCORE_CACHE"], dir, f'_{"_".join(checkpoint_dir.split("/"))}.csv')
         result_shard = pd.read_csv(result_path)
         results = pd.concat([results, result_shard], ignore_index=True)
 
-LANG_PAIRS = ["cs-en", "de-en", "ru-en"]
+LANG_PAIRS = ["en-cs", "en-de", "en-ru"]
 
 # calculate accuraciess
 ht_accuracies = {
@@ -106,12 +107,12 @@ print(r'\midrule')
 for i, lang_pair in enumerate(LANG_PAIRS):
     lp = lang_pair.split('-')
     print(lp[1]+r"\biarrow "+lp[0] + " & ", end="")
-    print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
     print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
+    print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
     print(f"{ht_accuracies['average'][i]:.2f} & ", end="")
-    print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
     print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
-    print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
+    print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
+    print(f"{nmt_accuracies['average'][i]:.2f} \\\\ ", end="")
     # print(f"{pre_nmt_accuracies['backward'][i]:.2f} & ", end="")
     # print(f"{pre_nmt_accuracies['forward'][i]:.2f} & ", end="")
     # print(f"{pre_nmt_accuracies['average'][i]:.2f} \\\\", end="")
@@ -119,12 +120,12 @@ for i, lang_pair in enumerate(LANG_PAIRS):
 
 print(r"\addlinespace")
 print(r"Macro-Avg. & ", end="")
-print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
 print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
+print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
 print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
-print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
 print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
-print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
+print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
+print(f"{np.mean(nmt_accuracies['average']):.2f} \\\\ ", end="")
 # print(f"{np.mean(pre_nmt_accuracies['backward']):.2f} & ", end="")
 # print(f"{np.mean(pre_nmt_accuracies['forward']):.2f} & ", end="")
 # print(f"{np.mean(pre_nmt_accuracies['average']):.2f} \\\\", end="")

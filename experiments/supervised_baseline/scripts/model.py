@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Union
 import torch
 import random
 
+
 from experiments.datasets import load_wmt16_dataset, load_wmt21_23_dataset, TranslationDataset
 
 def set_seed(seed):
@@ -14,76 +15,153 @@ def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-def load_split(lang_pair, split_type, translation_type, wmt_type=None):
+
+def load_split(lang_pairs, split_type):
     set_seed(42)
+    val_datasets = []
+    train_datasets = []
+    test_datasets = []
 
-    if split_type == 'train':
-        dataset = load_wmt16_dataset(lang_pair, translation_type)
-    elif split_type == 'val':
-        dataset = load_wmt21_23_dataset('wmt21', lang_pair, translation_type)
-    else:
-        dataset = load_wmt21_23_dataset(wmt_type, lang_pair, translation_type)
+    for lang_pair in lang_pairs:
+        ht = load_wmt16_dataset(lang_pair, 'ht')
+        nmt = load_wmt16_dataset(lang_pair, 'nmt')
+        prenmt = load_wmt16_dataset(lang_pair, 'pre-nmt')
 
-    random.shuffle(dataset.examples)
+        val_exmpls_ht = []
+        val_exmpls_nmt = []
+        val_exmpls_prenmt = []
 
-    if split_type == 'val' or split_type == 'test':
-        if wmt_type == 'wmt21':
-            # validation
-            val_set_examples = dataset.examples[:50]
+        train_exmpls_ht = []
+        train_exmpls_nmt = []
+        train_exmpls_prenmt = []
+
+        test_exmpls_prenmt = []
+
+        for ex_ht in ht.examples:
+            for ex_nmt in nmt.examples:
+                if len(val_exmpls_ht) < 100:
+                    if ex_nmt.src == ex_ht.src:
+                        val_exmpls_ht.append(ex_ht)
+                        val_exmpls_nmt.append(ex_nmt)
+                        break
+                elif len(train_exmpls_ht) < 1500:
+                    if ex_nmt.src == ex_ht.src:
+                        train_exmpls_ht.append(ex_ht)
+                        train_exmpls_nmt.append(ex_nmt)
+                        break
+                else:
+                    break
+
+        for ex_ht in val_exmpls_ht:
+            for ex_prenmt in prenmt.examples:
+                if ex_ht.src == ex_prenmt.src:
+                    val_exmpls_prenmt.append(ex_prenmt)
+                    break
+        
+        for ex_ht in train_exmpls_ht:
+            for ex_prenmt in prenmt.examples:
+                if ex_ht.src == ex_prenmt.src:
+                    train_exmpls_prenmt.append(ex_prenmt)
+                    break
+        
+        for ex_prenmt in prenmt.examples[:-1]:
+            if ex_prenmt in val_exmpls_prenmt:
+                continue
+            if ex_prenmt in train_exmpls_prenmt:
+                continue
+            else:
+                test_exmpls_prenmt.append(ex_prenmt)
+
+        print(len(val_exmpls_ht), len(val_exmpls_nmt), len(val_exmpls_prenmt))
+        assert len(val_exmpls_ht) == len(val_exmpls_nmt) == len(val_exmpls_prenmt) == 100
+        print(len(train_exmpls_ht), len(train_exmpls_nmt), len(train_exmpls_prenmt))
+        assert len(train_exmpls_ht) == len(train_exmpls_nmt) == len(train_exmpls_prenmt) <= 1500
+        for i in range(0, len(val_exmpls_ht)):
+            assert val_exmpls_ht[i].src == val_exmpls_nmt[i].src == val_exmpls_prenmt[i].src
+        for i in range(0, len(train_exmpls_ht)):
+            assert train_exmpls_ht[i].src == train_exmpls_nmt[i].src == train_exmpls_prenmt[i].src
+       
+        for _ in [ht, nmt, prenmt]:
+
+            if _.type == 'ht':
+                val_exmpls = val_exmpls_ht
+                train_exmpls = train_exmpls_ht
+            elif _.type == 'nmt':
+                val_exmpls = val_exmpls_nmt
+                train_exmpls = train_exmpls_nmt    
+            elif _.type == 'pre-nmt':
+                val_exmpls = val_exmpls_prenmt
+                train_exmpls = train_exmpls_prenmt
+                test_exmpls = test_exmpls_prenmt        
+
             val_set = TranslationDataset(
-                name='wmt21',
-                type=translation_type,
-                src_lang=dataset.src_lang,
-                tgt_lang=dataset.tgt_lang,
-                examples=val_set_examples
-            )
-
-        """
-        if translation_type == 'pre-nmt':
-            test_set_examples = dataset.examples[50:]
-            test_set = TranslationDataset(
-                name='wmt16',
-                type=translation_type,
-                src_lang=dataset.src_lang,
-                tgt_lang=dataset.tgt_lang,
-                examples=test_set_examples
-            )
-        """
-        # testing
-        assert wmt_type in ["wmt21", "wmt22", "wmt23"]
-        test_set_examples = dataset.examples[50:] if wmt_type in [None, 'wmt21'] else dataset.examples
-        test_set = TranslationDataset(
-            name='wmt21' if wmt_type == None else wmt_type,
-            type=translation_type,
-            src_lang=dataset.src_lang,
-            tgt_lang=dataset.tgt_lang,
-            examples=test_set_examples
-        )
-
-    else:
-        # training
-        assert wmt_type == 'wmt16'
-        dataset.examples = dataset.examples[:1500] if dataset.num_examples > 1500 else dataset.examples
-        train_set_examples = dataset.examples
-        train_set = TranslationDataset(
             name='wmt16',
-            type=translation_type,
-            src_lang=dataset.src_lang,
-            tgt_lang=dataset.tgt_lang,
-            examples=train_set_examples
-        )
+            type=_.type,
+            src_lang=_.src_lang,
+            tgt_lang=_.tgt_lang,
+            examples=val_exmpls
+                )
 
-    if split_type == 'train':
-        return train_set
-    elif split_type == 'val':
-        return val_set
-    elif split_type == 'test':
-        return test_set
+            val_datasets.append(val_set)
+
+            if _.type != 'pre-nmt':
+
+                random.shuffle(train_exmpls)
+
+                train_set = TranslationDataset(
+                name='wmt16',
+                type=_.type,
+                src_lang=_.src_lang,
+                tgt_lang=_.tgt_lang,
+                examples=train_exmpls
+                    )
+
+                train_datasets.append(train_set)
+
+            else: 
+
+                test_set = TranslationDataset(
+                name='wmt16',
+                type=_.type,
+                src_lang=_.src_lang,
+                tgt_lang=_.tgt_lang,
+                examples=test_exmpls
+                    )
+
+                test_datasets.append(test_set)
+        
+        for wmt_year in ['wmt21', 'wmt22', 'wmt23']:
+            if wmt_year == 'wmt23' and lang_pair in ['de-en', 'en-de', 'cs-en']:
+                continue
+            else:
+                ht = load_wmt21_23_dataset(wmt_year, lang_pair, 'ht')
+                nmt = load_wmt21_23_dataset(wmt_year, lang_pair, 'nmt')
+                test_datasets.append(ht)
+                test_datasets.append(nmt)
+        
+    if split_type == 'val':
+        print(f'number of validation sets: {len(val_datasets)}')
+        for ds in val_datasets:
+            print(f'{ds.translation_direction}: {ds.num_examples}')
+        return val_datasets 
     
+    elif split_type == 'train':
+        print(f'number of training sets: {len(train_datasets)}')
+        for ds in train_datasets:
+            print(f'{ds.translation_direction}: {ds.num_examples}')
+        return train_datasets
+        
+    elif split_type == 'test':
+        print(f'number of test sets: {len(test_datasets)}')
+        for ds in test_datasets:
+            print(f'{ds.translation_direction}: {ds.num_examples}')
+        return test_datasets
+    
+
 class CustomXLMRobertaClassificationHead(RobertaClassificationHead):
     def __init__(self, config):
         super().__init__(config)
-        self.dense = torch.nn.Linear(config.hidden_size, config.hidden_size)  # Input size: 3072
+        self.dense = torch.nn.Linear(3 * config.hidden_size, config.hidden_size) 
         self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
         self.out_proj = torch.nn.Linear(config.hidden_size, config.num_labels)
     
@@ -101,7 +179,6 @@ class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassificat
     def __init__(self, config):
         super().__init__(config)
         self.classifier = CustomXLMRobertaClassificationHead(config)
-    
     
     def forward(
         self,
@@ -124,12 +201,6 @@ class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassificat
             token_type_ids=token_type_ids1,
             position_ids=position_ids1,
         )
-        # hidden_states1 = outputs1.hidden_states  # last hidden state
-        # hidden_states_tensor1 = torch.stack(hidden_states1, dim=0)
-        # summed_hidden_states1 = hidden_states_tensor1.sum(dim=0)
-        # sequence_output1 = summed_hidden_states1.mean(dim=1) # avg of the hidden states
-        sequence_output1 = outputs1.last_hidden_state[:, 0, :] # pooler output
-
 
         outputs2 = self.roberta(
             input_ids2,
@@ -137,21 +208,39 @@ class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassificat
             token_type_ids=token_type_ids2,
             position_ids=position_ids2,
         )
-        # hidden_states2 = outputs2.hidden_states  # last hidden state
-        # hidden_states_tensor2 = torch.stack(hidden_states2, dim=0)
-        # summed_hidden_states2 = hidden_states_tensor2.sum(dim=0)
-        # sequence_output2 = summed_hidden_states2.mean(dim=1) # avg of the hidden states
-        sequence_output2 = outputs2.last_hidden_state[:, 0, :]  # pooler output
+
+        """
+        # avg of hidden states
+        hidden_states1 = outputs1.hidden_states
+        masked_hidden_states1 = hidden_states1 * attention_mask1.unsqueeze(-1)
+        sum_hidden_states1 = masked_hidden_states1.sum(dim=1)
+        count_valid_positions1 = attention_mask1.sum(dim=1, keepdim=True)
+        sequence_output1 = sum_hidden_states1 / count_valid_positions1 # avg
+
+        hidden_states2 = outputs2.hidden_states
+        masked_hidden_states2 = hidden_states2 * attention_mask2.unsqueeze(-1)
+        sum_hidden_states2 = masked_hidden_states2.sum(dim=1)
+        count_valid_positions2 = attention_mask2.sum(dim=1, keepdim=True)
+        count_valid_positions2 = torch.max(count_valid_positions2, torch.ones_like(count_valid_positions2))
+        sequence_output2 = sum_hidden_states2 / count_valid_positions2 # avg
+        """
+        
+        # pooler output
+        sequence_output1 = outputs1.last_hidden_state[:, 0, :] 
+        sequence_output2 = outputs2.last_hidden_state[:, 0, :]
+        
         
         #print(sequence_output1.shape, sequence_output2.shape)
         assert sequence_output1.shape == sequence_output2.shape, \
             f"Shape mismatch: {sequence_output1.shape} vs {sequence_output2.shape}"
 
+        # comet sentence representation calculations
         diff_embs = torch.abs(sequence_output1 - sequence_output2)
         prod_embs = sequence_output1 * sequence_output2
         
-        #combined_representation = torch.cat((sequence_output1, sequence_output2, diff_embs, prod_embs), dim=1) # introduces dependence on order?
-        combined_representation = sequence_output1 + sequence_output2 + diff_embs + prod_embs
+        # concatenation of representations
+        combined_representation = torch.cat((sequence_output1 + sequence_output2, diff_embs, prod_embs), dim=1) # addition to not introduce order
+        # combined_representation = sequence_output1 + sequence_output2 + diff_embs + prod_embs
 
         logits = self.classifier(combined_representation)
 
