@@ -18,34 +18,79 @@ assert split in ['test', 'val']
 checkpoint = sys.argv[3] 
 
 """
-checkpoint number epoch 2:
-checkpoint number epoch 4:
-checkpoint number epoch 5:
+checkpoints_cs-en_1e-05/checkpoint-1750
+checkpoints_cs-en_1e-05/checkpoint-1400
+checkpoints_cs-en_1e-05/checkpoint-700
+
+checkpoints_ru-en_1e-05/checkpoint-1750
+checkpoints_ru-en_1e-05/checkpoint-1400
+checkpoints_ru-en_1e-05/checkpoint-700
+
+checkpoints_de-en_1e-05/checkpoint-1750
+checkpoints_de-en_1e-05/checkpoint-1400
+checkpoints_de-en_1e-05/checkpoint-700
+
+checkpoints_cs-en_2e-05/checkpoint-1750
+checkpoints_cs-en_2e-05/checkpoint-1400
+checkpoints_cs-en_2e-05/checkpoint-700
+
+checkpoints_ru-en_2e-05/checkpoint-1750
+checkpoints_ru-en_2e-05/checkpoint-1400
+checkpoints_ru-en_2e-05/checkpoint-700
+
+checkpoints_de-en_2e-05/checkpoint-1750
+checkpoints_de-en_2e-05/checkpoint-1400
+checkpoints_de-en_2e-05/checkpoint-700
+
+checkpoints_cs-en_3e-05/checkpoint-1750
+checkpoints_cs-en_3e-05/checkpoint-1400
+checkpoints_cs-en_3e-05/checkpoint-700
+
+checkpoints_ru-en_3e-05/checkpoint-1750
+checkpoints_ru-en_3e-05/checkpoint-1400
+checkpoints_ru-en_3e-05/checkpoint-700
+
+checkpoints_de-en_3e-05/checkpoint-1750
+checkpoints_de-en_3e-05/checkpoint-1400
+checkpoints_de-en_3e-05/checkpoint-700
+
+checkpoints_cs-en_dynamic/checkpoint-1750
+checkpoints_cs-en_dynamic/checkpoint-1400
+checkpoints_cs-en_dynamic/checkpoint-700
+
+checkpoints_ru-en_dynamic/checkpoint-1750
+checkpoints_ru-en_dynamic/checkpoint-1400
+checkpoints_ru-en_dynamic/checkpoint-700
+
+checkpoints_de-en_dynamic/checkpoint-1750
+checkpoints_de-en_dynamic/checkpoint-1400
+checkpoints_de-en_dynamic/checkpoint-700
 """
 
 logging.basicConfig(level=logging.INFO)
 
-os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "baseline_validation_scores" / f"scores{shard}").absolute())
+os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "baseline_test_scores" / f"scores{shard}").absolute())
 os.makedirs(os.environ["NMTSCORE_CACHE"], exist_ok=True)
 
 LANG_PAIRS = ["en-cs", "de-en", "ru-en", "cs-en", "en-de", "en-ru"]
 
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
-datasets = []
+logging.info("Loading datasets...")
+lang_pairs = {
+    "cs-en": ["cs-en", "en-cs"],
+    "de-en": ["de-en", "en-de"],
+    "en-cs": ["cs-en", "en-cs"],
+    "en-de": ["de-en", "en-de"],
+    "en-ru": ["en-ru", "ru-en"],
+    "ru-en": ["en-ru", "ru-en"],
+}
+lang_pair = checkpoint.split('_')[1]
+
 if split == 'test':
-    for type in ['ht', 'nmt']:
-        for lang_pair in LANG_PAIRS: 
-            datasets.append(load_split(lang_pair, split_type=split, translation_type=type, wmt_type='wmt21')) if load_split(lang_pair, split_type=split, translation_type=type, wmt_type='wmt21') else None
-            datasets.append(load_split(lang_pair, split_type=split, translation_type=type, wmt_type='wmt22')) if load_split(lang_pair, split_type=split, translation_type=type, wmt_type='wmt22') else None
-            if lang_pair not in ["de-en", "cs-en", "en-de"]:
-                datasets.append(load_split(lang_pair, split_type=split, translation_type=type, wmt_type='wmt23')) if load_split(lang_pair, split_type=split, translation_type=type, wmt_type='wmt23') else None
+    datasets = load_split(lang_pairs[lang_pair], split_type=split)
 elif split == 'val':
-    for type in ['ht', 'nmt']:
-        for lang_pair in LANG_PAIRS: 
-            val_set = load_split(lang_pair, split_type=split, translation_type=type, wmt_type='wmt21')
-            datasets.append(val_set) if val_set else None
-            print(f'{val_set.translation_direction}-{type}-{split}: {val_set.num_examples}')
+    datasets = load_split(lang_pairs[lang_pair], split_type=split)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logging.info(f"Using device: {device}")
@@ -60,7 +105,7 @@ checkpoint_dict = {
 }
 
 for lang_pair in ['cs-en', 'ru-en', 'de-en']:
-    checkpoint_dir = f'experiments/supervised_baseline/checkpoints_{lang_pair}_{'2e-5'}/{checkpoint}' # TODO: adapt to desired path to checkpoint
+    checkpoint_dir = f'experiments/supervised_baseline/{checkpoint}' # TODO: adapt to desired path to checkpoint
     config = XLMRobertaConfig.from_pretrained(checkpoint_dir)
     tokenizer = XLMRobertaTokenizer.from_pretrained(checkpoint_dir)
     model = CustomXLMRobertaForSequenceClassification.from_pretrained(checkpoint_dir, config=config).to(device)
@@ -139,4 +184,5 @@ for i, dataset in enumerate(datasets):
     
 print(len(results.index))
 
-results.to_csv(os.path.join(os.environ["NMTSCORE_CACHE"], f'_{"_".join(checkpoint_dir.split("/")[-2:])}.csv'))
+save_filename = "-".join(checkpoint_dir.split("/")[-2:])
+results.to_csv(os.path.join(os.environ["NMTSCORE_CACHE"], f'{save_filename.replace("checkpoints_", "" )}.csv'))

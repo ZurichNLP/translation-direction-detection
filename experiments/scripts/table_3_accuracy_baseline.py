@@ -5,26 +5,32 @@ import os
 import numpy as np
 from pathlib import Path
 
+split = sys.argv[1]
+assert split in ['test', 'val']
 checkpoint_dir = sys.argv[2]
 
+
 '''
-checkpoint number epoch 2:
-checkpoint number epoch 4:
-checkpoint number epoch 5:
+1e-05/checkpoint-700
 '''
 
-os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "baseline_validation_scores").absolute())
+os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "baseline_validation_scores").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "baseline_test_scores").absolute()) 
 
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
 # load results
-for dir in os.listdir(os.environ["NMTSCORE_CACHE"]):
-    if dir not in ['.empty', '__pycache__', 'junk.py']:
-        result_path = os.path.join(os.environ["NMTSCORE_CACHE"], dir, f'_{"_".join(checkpoint_dir.split("/"))}.csv')
-        result_shard = pd.read_csv(result_path)
-        results = pd.concat([results, result_shard], ignore_index=True)
-
 LANG_PAIRS = ["en-cs", "en-de", "en-ru"]
+save_filename = "-".join(checkpoint_dir.split("/")[-2:])
+save_filename = save_filename.replace("checkpoints_", "" )
+
+for lang_pair in LANG_PAIRS:
+    lang_pair_split = lang_pair.split('-')
+    lang_pair_rev = lang_pair_split[1]+"-"+lang_pair_split[0]
+    for dir in os.listdir(os.environ["NMTSCORE_CACHE"]):
+        if dir not in ['.empty', '__pycache__', 'junk.py']:
+            result_path = os.path.join(os.environ["NMTSCORE_CACHE"], dir, f'{lang_pair_rev + "_" + save_filename}.csv')
+            result_shard = pd.read_csv(result_path)
+            results = pd.concat([results, result_shard], ignore_index=True)
 
 # calculate accuraciess
 ht_accuracies = {
@@ -45,9 +51,9 @@ pre_nmt_accuracies = {
     'average': []
 }
 
+print("\n"+checkpoint_dir+":")
 for t in ['ht', 'nmt', 'pre-nmt']:
     for lang_pair in LANG_PAIRS:
-        print(lang_pair, t)
         lang1, lang2 = lang_pair.split("-")
         forward_results = results.loc[(results['gold_label'] == f"{lang1}→{lang2}") & (results['type'] == t)]
         if len(forward_results.index) > 0:
@@ -97,38 +103,87 @@ Macro-Avg. & tba & tba & tba & tba & tba & tba & tba & tba & tba \\
 \end{tabular}
 \end{tabular}
 """
-print(r'\begin{tabular}{ccccccc}')#ccc}')
-print(r'\toprule')
-print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}  \\' )# & \multicolumn{3}{c}{Pre-NMT}  \\' )
-print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}') #\cmidrule(lr){8-10}')
-print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')#  & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
-print(r'\midrule')
 
-for i, lang_pair in enumerate(LANG_PAIRS):
-    lp = lang_pair.split('-')
-    print(lp[1]+r"\biarrow "+lp[0] + " & ", end="")
-    print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
-    print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
-    print(f"{ht_accuracies['average'][i]:.2f} & ", end="")
-    print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
-    print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
-    print(f"{nmt_accuracies['average'][i]:.2f} \\\\ ", end="")
-    # print(f"{pre_nmt_accuracies['backward'][i]:.2f} & ", end="")
-    # print(f"{pre_nmt_accuracies['forward'][i]:.2f} & ", end="")
-    # print(f"{pre_nmt_accuracies['average'][i]:.2f} \\\\", end="")
+if split == 'val':
+    print(r'\begin{tabular}{cccccccccc}')
+    print(r'\toprule')
+    print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}& \multicolumn{3}{c}{Pre-NMT}  \\' )
+    print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}')
+    print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
+    print(r'\midrule')
+
+    for i, lang_pair in enumerate(LANG_PAIRS):
+        lp = lang_pair.split('-')
+        print(lp[1]+r"\biarrow "+lp[0] + " & ", end="")
+        print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
+        print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
+        print(f"{ht_accuracies['average'][i]:.2f} & ", end="")
+        print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
+        print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
+        print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
+        print(f"{pre_nmt_accuracies['backward'][i]:.2f} & ", end="")
+        print(f"{pre_nmt_accuracies['forward'][i]:.2f} & ", end="")
+        print(f"{pre_nmt_accuracies['average'][i]:.2f} \\\\", end="")
+        print()
+
+    print(r"\addlinespace")
+    print(r"Macro-Avg. & ", end="")
+    print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
+    print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
+    print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
+    print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
+    print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
+    print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
+    print(f"{np.mean(pre_nmt_accuracies['backward']):.2f} & ", end="")
+    print(f"{np.mean(pre_nmt_accuracies['forward']):.2f} & ", end="")
+    print(f"{np.mean(pre_nmt_accuracies['average']):.2f} \\\\", end="")
     print()
+    print(r"\bottomrule")
+    print(r"\end{tabular}")     
 
-print(r"\addlinespace")
-print(r"Macro-Avg. & ", end="")
-print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
-print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
-print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
-print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
-print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
-print(f"{np.mean(nmt_accuracies['average']):.2f} \\\\ ", end="")
-# print(f"{np.mean(pre_nmt_accuracies['backward']):.2f} & ", end="")
-# print(f"{np.mean(pre_nmt_accuracies['forward']):.2f} & ", end="")
-# print(f"{np.mean(pre_nmt_accuracies['average']):.2f} \\\\", end="")
-print()
-print(r"\bottomrule")
-print(r"\end{tabular}")       
+elif split == 'test':
+
+    r"""
+    \begin{tabular}{ccccccc}
+    \toprule
+    & \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}\
+    \cmidrule(lr){2-4}\cmidrule(lr){5-7}\\
+    Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\
+    \midrule
+    en\(\leftrightarrow\)cs & tba & tba & tba & tba & tba & tba \\
+    en\(\leftrightarrow\)de & tba & tba & tba & tba & tba & tba \\
+    en\(\leftrightarrow\)ru & tba & tba & tba & tba & tba & tba \\
+    \addlinespace
+    Macro-Avg. & tba & tba & tba & tba & tba & tba & tba \\
+    \bottomrule
+    \end{tabular}
+    """
+    print(r'\begin{tabular}{ccccccc}')
+    print(r'\toprule')
+    print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}& \multicolumn{3}{c}{Pre-NMT}  \\' )
+    print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}')
+    print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
+    print(r'\midrule')
+
+    for i, lang_pair in enumerate(LANG_PAIRS):
+        lp = lang_pair.split('-')
+        print(lp[1]+r"\biarrow "+lp[0] + " & ", end="")
+        print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
+        print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
+        print(f"{ht_accuracies['average'][i]:.2f} & ", end="")
+        print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
+        print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
+        print(f"{nmt_accuracies['average'][i]:.2f} \\\\", end="")
+        print()
+
+    print(r"\addlinespace")
+    print(r"Macro-Avg. & ", end="")
+    print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
+    print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
+    print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
+    print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
+    print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
+    print(f"{np.mean(nmt_accuracies['average']):.2f} \\\\", end="")
+    print()
+    print(r"\bottomrule")
+    print(r"\end{tabular}")     
