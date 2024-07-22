@@ -114,7 +114,7 @@ if split == 'val':
 
     for i, lang_pair in enumerate(LANG_PAIRS):
         lp = lang_pair.split('-')
-        print(lp[1]+r"\biarrow "+lp[0] + " & ", end="")
+        print(lp[0]+r"\biarrow "+lp[1] + " & ", end="")
         print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
         print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
         print(f"{ht_accuracies['average'][i]:.2f} & ", end="")
@@ -160,14 +160,14 @@ elif split == 'test':
     """
     print(r'\begin{tabular}{ccccccc}')
     print(r'\toprule')
-    print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}& \multicolumn{3}{c}{Pre-NMT}  \\' )
-    print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}')
-    print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
+    print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}  \\' )
+    print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}')
+    print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
     print(r'\midrule')
 
     for i, lang_pair in enumerate(LANG_PAIRS):
         lp = lang_pair.split('-')
-        print(lp[1]+r"\biarrow "+lp[0] + " & ", end="")
+        print(lp[0]+r"\biarrow "+lp[1] + " & ", end="")
         print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
         print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
         print(f"{ht_accuracies['average'][i]:.2f} & ", end="")

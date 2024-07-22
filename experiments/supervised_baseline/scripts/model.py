@@ -118,8 +118,6 @@ def load_split(lang_pairs, split_type):
 
                 train_datasets.append(train_set)
 
-            else: 
-
                 test_set = TranslationDataset(
                 name='wmt16',
                 type=_.type,
