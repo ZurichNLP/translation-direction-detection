@@ -17,6 +17,7 @@ split = sys.argv[2]
 assert split in ['test', 'val']
 checkpoint = sys.argv[3] 
 
+# checkpoints
 """
 checkpoints_cs-en_1e-05/checkpoint-1750
 checkpoints_cs-en_1e-05/checkpoint-1400
@@ -124,10 +125,6 @@ for i, dataset in enumerate(datasets):
         config, tokenizer, model = checkpoint_dict[f"{dataset.src_lang}-{dataset.tgt_lang}"]
         input_src = tokenizer(source_sentence, return_tensors="pt", truncation=True, max_length=128, padding='max_length')
         input_tgt = tokenizer(target_sentence, return_tensors="pt", truncation=True, max_length=128, padding='max_length')
-
-        """if input_src['input_ids'].shape[1] > 512 or input_tgt['input_ids'].shape[1] > 512:
-            logging.info(f"Skipping input pair with length {inputs['input_ids'].shape[1]} > 512 tokens")
-            continue"""
         
         input_src = {key: value.to(device) for key, value in input_src.items()}
         input_tgt = {key: value.to(device) for key, value in input_tgt.items()}
@@ -170,7 +167,6 @@ for i, dataset in enumerate(datasets):
             predicted_label = f"{second_lang}→en"
             # score for scnd->en lang = 0
             
-        # TODO: cache the results instead of saving them in csv file
         assert dataset.type in ['ht', 'pre-nmt', 'nmt']
         result = {
             'source': example.src,

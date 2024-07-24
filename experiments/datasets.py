@@ -255,6 +255,7 @@ def load_flores_dataset(lang_pair: str, type: str) -> TranslationDataset:
         "xh": "xho_Latn",
         "hi": "hin_Deva",
         "bn": "ben_Beng",
+        "zh": "zho_Hans"
            }
 
     src_lang_code = lang_code[src_lang]
@@ -306,7 +307,7 @@ def load_all_datasets() -> List[TranslationDataset]:
 
     # Flores (both sides are translations from English – translations are not direct between the pair)
     indirect_datasets = []
-    lo_res_pairs = ["bn-hi", "hi-bn", "xh-zu", "zu-xh", "cs-uk", "de-fr"]
+    lo_res_pairs = ["bn-hi", "hi-bn", "xh-zu", "zu-xh", "cs-uk", "de-fr", "fr-zh", "de-hi"]
     for lang_pair in lo_res_pairs:
         indirect_datasets.append(load_flores_dataset(lang_pair, "ht"))
     for dataset in indirect_datasets:

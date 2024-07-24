@@ -10,6 +10,112 @@ import random
 
 from experiments.datasets import load_wmt16_dataset, load_wmt21_23_dataset, TranslationDataset
 
+class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassification):
+    def __init__(self, config):
+        super().__init__(config)
+        self.classifier = CustomXLMRobertaClassificationHead(config)
+    
+    def forward(
+        self,
+        input_ids1: Optional[torch.LongTensor] = None,
+        attention_mask1: Optional[torch.FloatTensor] = None,
+        input_ids2: Optional[torch.LongTensor] = None,
+        attention_mask2: Optional[torch.FloatTensor] = None,
+        token_type_ids1: Optional[torch.LongTensor] = None,
+        token_type_ids2: Optional[torch.LongTensor] = None,
+        position_ids1: Optional[torch.LongTensor] = None,
+        position_ids2: Optional[torch.LongTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        return_dict: Optional[bool] = None,
+    ) -> Union[Tuple[torch.Tensor], modeling_outputs.SequenceClassifierOutput]:
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        outputs1 = self.roberta(
+            input_ids1,
+            attention_mask=attention_mask1,
+            token_type_ids=token_type_ids1,
+            position_ids=position_ids1,
+        )
+
+        outputs2 = self.roberta(
+            input_ids2,
+            attention_mask=attention_mask2,
+            token_type_ids=token_type_ids2,
+            position_ids=position_ids2,
+        )
+
+        # pooler output
+        sequence_output1 = outputs1.last_hidden_state[:, 0, :] 
+        sequence_output2 = outputs2.last_hidden_state[:, 0, :]
+        
+        
+        #print(sequence_output1.shape, sequence_output2.shape)
+        assert sequence_output1.shape == sequence_output2.shape, \
+            f"Shape mismatch: {sequence_output1.shape} vs {sequence_output2.shape}"
+
+        # comet sentence representation calculations
+        diff_embs = torch.abs(sequence_output1 - sequence_output2)
+        prod_embs = sequence_output1 * sequence_output2
+        
+        # concatenation of representations
+        combined_representation = torch.cat((sequence_output1 + sequence_output2, diff_embs, prod_embs), dim=1) # addition to not introduce order
+        # combined_representation = sequence_output1 + sequence_output2 + diff_embs + prod_embs
+
+        logits = self.classifier(combined_representation)
+
+        loss = None
+        if labels is not None:
+            labels = labels.to(logits.device)
+            if self.config.problem_type is None:
+                if self.num_labels == 1:
+                    self.config.problem_type = "regression"
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                    self.config.problem_type = "single_label_classification"
+                else:
+                    self.config.problem_type = "multi_label_classification"
+
+            if self.config.problem_type == "regression":
+                loss_fct = MSELoss()
+                if self.num_labels == 1:
+                    loss = loss_fct(logits.squeeze(), labels.squeeze())
+                else:
+                    loss = loss_fct(logits, labels)
+            elif self.config.problem_type == "single_label_classification":
+                loss_fct = CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            elif self.config.problem_type == "multi_label_classification":
+                loss_fct = BCEWithLogitsLoss()
+                loss = loss_fct(logits, labels)
+
+        if not return_dict:
+            output = (logits,) + outputs1[2:] + outputs2[2:]
+            return ((loss,) + output) if loss is not None else output
+
+        return modeling_outputs.SequenceClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=(sequence_output1, sequence_output2),
+            attentions=None,
+        )
+
+
+class CustomXLMRobertaClassificationHead(RobertaClassificationHead):
+    def __init__(self, config):
+        super().__init__(config)
+        self.dense = torch.nn.Linear(3 * config.hidden_size, config.hidden_size) 
+        self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
+        self.out_proj = torch.nn.Linear(config.hidden_size, config.num_labels)
+    
+    def forward(self, features, **kwargs):
+        x = features # since the features are already features[:, 0, :]
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+    
+    
 def set_seed(seed):
     random.seed(seed)
     torch.manual_seed(seed)
@@ -154,125 +260,5 @@ def load_split(lang_pairs, split_type):
         for ds in test_datasets:
             print(f'{ds.translation_direction}: {ds.num_examples}')
         return test_datasets
+
     
-
-class CustomXLMRobertaClassificationHead(RobertaClassificationHead):
-    def __init__(self, config):
-        super().__init__(config)
-        self.dense = torch.nn.Linear(3 * config.hidden_size, config.hidden_size) 
-        self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
-        self.out_proj = torch.nn.Linear(config.hidden_size, config.num_labels)
-    
-    def forward(self, features, **kwargs):
-        x = features # since the features are already features[:, 0, :]
-        x = self.dropout(x)
-        x = self.dense(x)
-        x = torch.tanh(x)
-        x = self.dropout(x)
-        x = self.out_proj(x)
-        return x
-    
-
-class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassification):
-    def __init__(self, config):
-        super().__init__(config)
-        self.classifier = CustomXLMRobertaClassificationHead(config)
-    
-    def forward(
-        self,
-        input_ids1: Optional[torch.LongTensor] = None,
-        attention_mask1: Optional[torch.FloatTensor] = None,
-        input_ids2: Optional[torch.LongTensor] = None,
-        attention_mask2: Optional[torch.FloatTensor] = None,
-        token_type_ids1: Optional[torch.LongTensor] = None,
-        token_type_ids2: Optional[torch.LongTensor] = None,
-        position_ids1: Optional[torch.LongTensor] = None,
-        position_ids2: Optional[torch.LongTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[torch.Tensor], modeling_outputs.SequenceClassifierOutput]:
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        outputs1 = self.roberta(
-            input_ids1,
-            attention_mask=attention_mask1,
-            token_type_ids=token_type_ids1,
-            position_ids=position_ids1,
-        )
-
-        outputs2 = self.roberta(
-            input_ids2,
-            attention_mask=attention_mask2,
-            token_type_ids=token_type_ids2,
-            position_ids=position_ids2,
-        )
-
-        """
-        # avg of hidden states
-        hidden_states1 = outputs1.hidden_states
-        masked_hidden_states1 = hidden_states1 * attention_mask1.unsqueeze(-1)
-        sum_hidden_states1 = masked_hidden_states1.sum(dim=1)
-        count_valid_positions1 = attention_mask1.sum(dim=1, keepdim=True)
-        sequence_output1 = sum_hidden_states1 / count_valid_positions1 # avg
-
-        hidden_states2 = outputs2.hidden_states
-        masked_hidden_states2 = hidden_states2 * attention_mask2.unsqueeze(-1)
-        sum_hidden_states2 = masked_hidden_states2.sum(dim=1)
-        count_valid_positions2 = attention_mask2.sum(dim=1, keepdim=True)
-        count_valid_positions2 = torch.max(count_valid_positions2, torch.ones_like(count_valid_positions2))
-        sequence_output2 = sum_hidden_states2 / count_valid_positions2 # avg
-        """
-        
-        # pooler output
-        sequence_output1 = outputs1.last_hidden_state[:, 0, :] 
-        sequence_output2 = outputs2.last_hidden_state[:, 0, :]
-        
-        
-        #print(sequence_output1.shape, sequence_output2.shape)
-        assert sequence_output1.shape == sequence_output2.shape, \
-            f"Shape mismatch: {sequence_output1.shape} vs {sequence_output2.shape}"
-
-        # comet sentence representation calculations
-        diff_embs = torch.abs(sequence_output1 - sequence_output2)
-        prod_embs = sequence_output1 * sequence_output2
-        
-        # concatenation of representations
-        combined_representation = torch.cat((sequence_output1 + sequence_output2, diff_embs, prod_embs), dim=1) # addition to not introduce order
-        # combined_representation = sequence_output1 + sequence_output2 + diff_embs + prod_embs
-
-        logits = self.classifier(combined_representation)
-
-        loss = None
-        if labels is not None:
-            labels = labels.to(logits.device)
-            if self.config.problem_type is None:
-                if self.num_labels == 1:
-                    self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
-                    self.config.problem_type = "single_label_classification"
-                else:
-                    self.config.problem_type = "multi_label_classification"
-
-            if self.config.problem_type == "regression":
-                loss_fct = MSELoss()
-                if self.num_labels == 1:
-                    loss = loss_fct(logits.squeeze(), labels.squeeze())
-                else:
-                    loss = loss_fct(logits, labels)
-            elif self.config.problem_type == "single_label_classification":
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            elif self.config.problem_type == "multi_label_classification":
-                loss_fct = BCEWithLogitsLoss()
-                loss = loss_fct(logits, labels)
-
-        if not return_dict:
-            output = (logits,) + outputs1[2:] + outputs2[2:]
-            return ((loss,) + output) if loss is not None else output
-
-        return modeling_outputs.SequenceClassifierOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=(sequence_output1, sequence_output2),
-            attentions=None,
-        )
