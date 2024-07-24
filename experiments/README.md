@@ -39,19 +39,46 @@ experiments/
         ...
 ```
 
+## Reproducing the baseline
+To train the models that were used in the paper, run for each language pair:
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 cs-en --lr 1e-05`
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 ru-en --lr 1e-05`
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 de-en --lr 1e-05`
+
+Afterwards, use the resulting checkpoints to predict the labels on the test and/or validation set, where the computation is distributed over shards as above:
+
+- `python -m experiments.scripts.run_baseline checkpoints_cs-en_1e-05/checkpoint-700 test 0`
+- `python -m experiments.scripts.run_baseline checkpoints_ru-en_1e-05/checkpoint-700 test 0`
+- `python -m experiments.scripts.run_baseline checkpoints_de-en_1e-05/checkpoint-1400 test 0`
+
+The labeled segment pairs are stored in the following directory structure:
+```
+experiments/
+└── baseline_test/validation_scores
+    ├── nmtscore_cache0
+    │   ├── cs-en_1e-05-checkpoint-700.csv
+    │   ├── ru-en_1e-05-checkpoint-700.csv
+    │   └── de-en_1e-05-checkpoint-1400.csv
+    ...
+    └── nmtscore_cache11
+        ...
+```
+
 ## Reproducing the tables in the paper
 The following scripts reproduce the tables in the paper:
 
 - Table 1: `scripts/table_1_main_stats.py`
-- Table 2, Tables 10–13: `scripts/full_model_table.py`
-- Table 3: `scripts/table_3_accuracy_ht.py`
-- Table 4: `scripts/table_4_accuracy_prenmt.py`
-- Table 5: `scripts/table_5_accuracy_indirect_ht.py`
-- Table 6: `scripts/table_6_examples.py`
-- Table 7: `scripts/table_7_accuracy_doc_ht.py`
-- Table 8: `scripts/table_8_accuracy_doc_nmt.py`
-- Table 14: `scripts/full_stats_table.py`
-- Table 15: `scripts/table_15_indirect_stats.py`
+- Table 2: `scripts/table_2_baseline_comparison.py`
+- Table 3, Tables 10–13: `scripts/full_model_table.py`
+- Table 4: `scripts/table_4_accuracy_ht.py`
+- Table 5: `scripts/table_5_accuracy_prenmt.py`
+- Table 6: `scripts/table_6_accuracy_indirect_ht.py`
+- Table 7: `scripts/table_7_examples.py`
+- Table 8: `scripts/table_8_accuracy_doc_ht.py`
+- Table 9: `scripts/table_9_accuracy_doc_nmt.py`
+- Table 14: `scripts/accuracy_baseline.py`
+- Table 17: `scripts/full_stats_table.py`
+- Table 18: `scripts/indirect_stats.py`
 
 The following script reproduces the hypothesis test described in Section 5.6:
 - `scripts/real_world_hypothesis_test.py`
