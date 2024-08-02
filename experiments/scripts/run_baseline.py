@@ -73,8 +73,6 @@ logging.basicConfig(level=logging.INFO)
 os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "baseline_test_scores" / f"scores{shard}").absolute())
 os.makedirs(os.environ["NMTSCORE_CACHE"], exist_ok=True)
 
-LANG_PAIRS = ["en-cs", "de-en", "ru-en", "cs-en", "en-de", "en-ru"]
-
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
 logging.info("Loading datasets...")
@@ -105,15 +103,14 @@ checkpoint_dict = {
     "ru-en": None,
 }
 
-for lang_pair in ['cs-en', 'ru-en', 'de-en']:
-    checkpoint_dir = f'experiments/supervised_baseline/{checkpoint}' # TODO: adapt to desired path to checkpoint
-    config = XLMRobertaConfig.from_pretrained(checkpoint_dir)
-    tokenizer = XLMRobertaTokenizer.from_pretrained(checkpoint_dir)
-    model = CustomXLMRobertaForSequenceClassification.from_pretrained(checkpoint_dir, config=config).to(device)
-    model.eval()
-    src, tgt = lang_pair.split('-')
-    checkpoint_dict[f'{src}-{tgt}'] = config, tokenizer, model
-    checkpoint_dict[f'{tgt}-{src}'] = config, tokenizer, model
+checkpoint_dir = f'experiments/supervised_baseline/{checkpoint}' # TODO: adapt to desired path to checkpoint
+config = XLMRobertaConfig.from_pretrained(checkpoint_dir)
+tokenizer = XLMRobertaTokenizer.from_pretrained(checkpoint_dir)
+model = CustomXLMRobertaForSequenceClassification.from_pretrained(checkpoint_dir, config=config).to(device)
+model.eval()
+src, tgt = lang_pair.split('-')
+checkpoint_dict[f'{src}-{tgt}'] = config, tokenizer, model
+checkpoint_dict[f'{tgt}-{src}'] = config, tokenizer, model
 
 for i, dataset in enumerate(datasets):
     if i % 12 != int(shard):
