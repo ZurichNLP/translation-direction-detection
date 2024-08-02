@@ -6,9 +6,10 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from typing import List, Optional, Tuple, Union
 import torch
 import random
+import os
 
 
-from experiments.datasets import load_wmt16_dataset, load_wmt21_23_dataset, TranslationDataset
+from experiments.datasets import load_wmt16_dataset, load_wmt21_23_dataset, TranslationDataset, TranslationExample
 
 class CustomXLMRobertaForSequenceClassification(XLMRobertaForSequenceClassification):
     def __init__(self, config):
@@ -223,6 +224,8 @@ def load_split(lang_pairs, split_type):
                     )
 
                 train_datasets.append(train_set)
+            
+            else:
 
                 test_set = TranslationDataset(
                 name='wmt16',
@@ -261,4 +264,118 @@ def load_split(lang_pairs, split_type):
             print(f'{ds.translation_direction}: {ds.num_examples}')
         return test_datasets
 
+
+def load_split_europarl(lang_pairs, split_type):
+    set_seed(42)
+
+    val_datasets = []
+    train_datasets = []
+    test_datasets = []
+
+    path_to_data = "experiments/supervised_baseline/data/parallel/"
+    """  
+    num_examples_per_dir = {
+            'cs-en' : 12812,
+            'de-en' : 267049,
+            'fr-de' : 222888,            
+            'en-cs' : 12812,
+            'en-de' : 267049,
+            'de-fr' : 222888
+        }
+    """
+    total_size = 12812 # change according to desired dataset size; 12812 is the size of the smallest direction dataset; 50'000 is for the ones with >100000 examples; 1500 is for the run to compare to wmt models
+    train_size = int(total_size * 0.8) 
+    test_size = int(total_size * 0.1)
+    val_size = int(total_size * 0.1)
+
+    print(train_size + test_size + val_size, total_size)
+    assert train_size + test_size + val_size in range(total_size - 2, total_size + 2)
+
+    for lang_pair in lang_pairs:
+        lang1, lang2 = lang_pair.split("-")
+        lang_pair_path = os.path.join(path_to_data, lang_pair.upper(), "tab")
+
+        train_set = TranslationDataset(
+                name='europarl',
+                type='ht',
+                src_lang=lang1,
+                tgt_lang=lang2,
+                examples=[],
+            )
+        test_set = TranslationDataset(
+                name='europarl',
+                type='ht',
+                src_lang=lang1,
+                tgt_lang=lang2,
+                examples=[],
+            )
+        val_set = TranslationDataset(
+                name='europarl',
+                type='ht',
+                src_lang=lang1,
+                tgt_lang=lang2,
+                examples=[],
+            )
+        
+        counter = 0
+        for file in os.listdir(lang_pair_path):
+            with open(os.path.join(lang_pair_path, file), "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                for i in range(len(lines)):
+                    counter += 1
+                    if train_set.num_examples < train_size:
+                        example = TranslationExample(
+                            src=lines[i].split('\t')[0].strip(),
+                            tgt=lines[i].split('\t')[1].strip(),
+                            docid=file.replace('.tab', ''),
+                            sysid=file.replace('.tab', '')+'-'+str(i)
+                        )
+                        train_set.examples.append(example)
+                    elif test_set.num_examples < test_size:
+                        example = TranslationExample(
+                            src=lines[i].split('\t')[0].strip(),
+                            tgt=lines[i].split('\t')[1].strip(),
+                            docid=file.replace('.tab', ''),
+                            sysid=file.replace('.tab', '')+'-'+str(i)
+                        )
+                        test_set.examples.append(example)
+                    elif val_set.num_examples < val_size:
+                        example = TranslationExample(
+                            src=lines[i].split('\t')[0].strip(),
+                            tgt=lines[i].split('\t')[1].strip(),
+                            docid=file.replace('.tab', ''),
+                            sysid=file.replace('.tab', '')+'-'+str(i)
+                        )
+                        val_set.examples.append(example)
+                    else:
+                        break
+                if train_set.num_examples == train_size and test_set.num_examples == test_size and val_set.num_examples == val_size:
+                    break
+                
+        print(train_set.num_examples, test_set.num_examples, val_set.num_examples, train_set.num_examples + test_set.num_examples + val_set.num_examples, total_size)
+        assert train_set.num_examples == train_size
+        assert test_set.num_examples == test_size
+        assert val_set.num_examples == val_size
+
+        train_datasets.append(train_set)
+        val_datasets.append(val_set)
+        test_datasets.append(test_set)
+        
+    if split_type == 'val':
+        print(f'number of validation sets: {len(val_datasets)}')
+        for ds in val_datasets:
+            print(f'{ds.translation_direction}: {ds.num_examples}')
+        return val_datasets 
     
+    elif split_type == 'train':
+        print(f'number of training sets: {len(train_datasets)}')
+        for ds in train_datasets:
+            print(f'{ds.translation_direction}: {ds.num_examples}')
+        return train_datasets
+        
+    elif split_type == 'test':
+        print(f'number of test sets: {len(test_datasets)}')
+        for ds in test_datasets:
+            print(f'{ds.translation_direction}: {ds.num_examples}')
+        return test_datasets
+

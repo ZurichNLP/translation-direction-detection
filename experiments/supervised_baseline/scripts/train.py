@@ -5,7 +5,7 @@ import torch
 import logging
 import argparse
 
-from experiments.supervised_baseline.scripts.model import CustomXLMRobertaForSequenceClassification, load_split, set_seed
+from experiments.supervised_baseline.scripts.model import CustomXLMRobertaForSequenceClassification, load_split, set_seed, load_split_europarl
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,6 +15,7 @@ parser.add_argument('lang_pair', type=str, help='Choose language pair to train o
 parser.add_argument('--epochs', type=int, default=5, help='Choose number of epochs, e.g.: 3, 5 or 10')
 parser.add_argument('--lr', type=float, default=2e-5, help='Choose a learning rate, e.g.: 1e-5, 2e-5 or 3e-5')
 parser.add_argument('--batch_size', type=int, default=16, help='Choose a batch size, e.g.: 4, 8 or 16')
+parser.add_argument('--dataset', type=str, default='wmt', help='Choose a dataset to train on, e.g.: wmt or europarl')
 args = parser.parse_args()
 
 set_seed(42)
@@ -80,9 +81,10 @@ lang_pairs = {
     "en-de": ["de-en", "en-de"],
     "en-ru": ["en-ru", "ru-en"],
     "ru-en": ["en-ru", "ru-en"],
+    "de-fr": ["de-fr", "fr-de"],
 }
 
-datasets = load_split(lang_pairs[args.lang_pair], split_type='train')
+datasets = load_split(lang_pairs[args.lang_pair], split_type='train') if args.dataset == 'wmt' else load_split_europarl(lang_pairs[args.lang_pair], split_type='train')
 
 # preprocess
 label_mapping = {'en→cs': 0,
@@ -90,7 +92,9 @@ label_mapping = {'en→cs': 0,
                  'en→de': 0,
                  'de→en': 1,
                  'en→ru': 0,
-                 'ru→en': 1,}
+                 'ru→en': 1,
+                 'fr→de': 0, 
+                 'de→fr': 1}
 
 source_side = []
 ref_side = []
@@ -121,7 +125,7 @@ tokenized_data_ref = tokenizer(ref_side, truncation=True, padding='max_length', 
 training_data = CustomDataset(tokenized_data_src, tokenized_data_ref, labels)
 
 training_args = TrainingArguments(
-    f'experiments/supervised_baseline/checkpoints_{args.lang_pair}_dynamic', 
+    f'experiments/supervised_baseline_europarl/checkpoints_{args.lang_pair}_{args.lr}_{len(source_side)}' if args.dataset == "europarl" else f'experiments/supervised_baseline/checkpoints_{args.lang_pair}_{args.lr}', 
     evaluation_strategy='no',
     save_strategy='epoch',       
     learning_rate=args.lr, 
