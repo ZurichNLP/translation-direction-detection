@@ -7,18 +7,26 @@ from pathlib import Path
 split = sys.argv[1]
 assert split in ['test', 'val']
 checkpoint_dir = sys.argv[2]
-
+train_set = sys.argv[4] 
+assert train_set in ['wmt', 'europarl']
+test_set = sys.argv[5] 
+assert test_set in ['wmt', 'europarl']
 
 '''
 1e-05/checkpoint-[700, 1400, 1750]
 '''
 
-os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "baseline_validation_scores").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "baseline_test_scores").absolute()) 
+if train_set == 'wmt' and test_set == 'wmt':
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_test_scores" / f"scores{shard}").absolute()) 
+elif train_set == "europarl" and test_set == 'wmt':
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_test_scores" / f"scores{shard}").absolute()) 
+elif train_set == "europarl" and test_set == 'europarl':
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl"/ "europarl_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_baseline_test_scores" / f"scores{shard}").absolute()) 
 
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
 # load results
-LANG_PAIRS = ["en-cs", "en-de", "en-ru"]
+LANG_PAIRS = ["en-cs", "en-de", "en-ru", "de-fr"]
 save_filename = "-".join(checkpoint_dir.split("/")[-2:])
 save_filename = save_filename.replace("checkpoints_", "" )
 
