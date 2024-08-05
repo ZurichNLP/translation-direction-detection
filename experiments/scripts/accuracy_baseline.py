@@ -7,26 +7,31 @@ from pathlib import Path
 split = sys.argv[1]
 assert split in ['test', 'val']
 checkpoint_dir = sys.argv[2]
-train_set = sys.argv[4] 
+train_set = sys.argv[3] 
 assert train_set in ['wmt', 'europarl']
-test_set = sys.argv[5] 
+test_set = sys.argv[4] 
 assert test_set in ['wmt', 'europarl']
+test_lp = [sys.argv[5]]
+
 
 '''
-1e-05/checkpoint-[700, 1400, 1750]
+wmt:
+[1e-05, 2e-05, 3e-05, dynamic]/checkpoint-[700, 1400, 1750]
+[1e-05, 2e-05, 3e-05, dynamic]_20498/checkpoint-[1282, 2564, 3846, 6410]
 '''
 
 if train_set == 'wmt' and test_set == 'wmt':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_test_scores" / f"scores{shard}").absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_validation_scores").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_test_scores" ).absolute()) 
 elif train_set == "europarl" and test_set == 'wmt':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_test_scores" / f"scores{shard}").absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_validation_scores" ).absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_test_scores" ).absolute()) 
 elif train_set == "europarl" and test_set == 'europarl':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl"/ "europarl_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_baseline_test_scores" / f"scores{shard}").absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl"/ "europarl_baseline_validation_scores").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_baseline_test_scores" ).absolute()) 
 
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
 # load results
-LANG_PAIRS = ["en-cs", "en-de", "en-ru", "de-fr"]
+LANG_PAIRS = ["en-cs", "en-de", "en-ru"] if train_set == 'wmt' else ["en-cs", "en-de", "fr-de"]
+LANG_PAIRS = LANG_PAIRS if split == 'val' else test_lp
 save_filename = "-".join(checkpoint_dir.split("/")[-2:])
 save_filename = save_filename.replace("checkpoints_", "" )
 

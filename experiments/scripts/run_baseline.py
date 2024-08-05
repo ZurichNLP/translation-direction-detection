@@ -23,59 +23,15 @@ assert test_set in ['wmt', 'europarl']
 
 # checkpoints
 """
-europarl:
-checkpoints_cs-en_1e-05/checkpoint-50
-checkpoints_cs-en_1e-05/checkpoint-1400
-checkpoints_cs-en_1e-05/checkpoint-700
+europarl examples:
+checkpoints_cs-en_1e-05_20498/checkpoint-1282
+checkpoints_cs-en_1e-05_20498/checkpoint-5128
+checkpoints_cs-en_1e-05_20498/checkpoint-6410
 
-wmt:
+wmt examples:
 checkpoints_cs-en_1e-05/checkpoint-1750
 checkpoints_cs-en_1e-05/checkpoint-1400
 checkpoints_cs-en_1e-05/checkpoint-700
-
-checkpoints_ru-en_1e-05/checkpoint-1750
-checkpoints_ru-en_1e-05/checkpoint-1400
-checkpoints_ru-en_1e-05/checkpoint-700
-
-checkpoints_de-en_1e-05/checkpoint-1750
-checkpoints_de-en_1e-05/checkpoint-1400
-checkpoints_de-en_1e-05/checkpoint-700
-
-checkpoints_cs-en_2e-05/checkpoint-1750
-checkpoints_cs-en_2e-05/checkpoint-1400
-checkpoints_cs-en_2e-05/checkpoint-700
-
-checkpoints_ru-en_2e-05/checkpoint-1750
-checkpoints_ru-en_2e-05/checkpoint-1400
-checkpoints_ru-en_2e-05/checkpoint-700
-
-checkpoints_de-en_2e-05/checkpoint-1750
-checkpoints_de-en_2e-05/checkpoint-1400
-checkpoints_de-en_2e-05/checkpoint-700
-
-checkpoints_cs-en_3e-05/checkpoint-1750
-checkpoints_cs-en_3e-05/checkpoint-1400
-checkpoints_cs-en_3e-05/checkpoint-700
-
-checkpoints_ru-en_3e-05/checkpoint-1750
-checkpoints_ru-en_3e-05/checkpoint-1400
-checkpoints_ru-en_3e-05/checkpoint-700
-
-checkpoints_de-en_3e-05/checkpoint-1750
-checkpoints_de-en_3e-05/checkpoint-1400
-checkpoints_de-en_3e-05/checkpoint-700
-
-checkpoints_cs-en_dynamic/checkpoint-1750
-checkpoints_cs-en_dynamic/checkpoint-1400
-checkpoints_cs-en_dynamic/checkpoint-700
-
-checkpoints_ru-en_dynamic/checkpoint-1750
-checkpoints_ru-en_dynamic/checkpoint-1400
-checkpoints_ru-en_dynamic/checkpoint-700
-
-checkpoints_de-en_dynamic/checkpoint-1750
-checkpoints_de-en_dynamic/checkpoint-1400
-checkpoints_de-en_dynamic/checkpoint-700
 """
 
 logging.basicConfig(level=logging.INFO)
@@ -100,7 +56,8 @@ lang_pairs = {
     "en-de": ["de-en", "en-de"],
     "en-ru": ["en-ru", "ru-en"],
     "ru-en": ["en-ru", "ru-en"],
-    "de-fr": ["de-fr", "fr-de"]
+    "de-fr": ["de-fr", "fr-de"],
+    "fr-de": ["de-fr", "fr-de"]
 }
 lang_pair = checkpoint.split('_')[1]
 
@@ -142,11 +99,9 @@ for i, dataset in enumerate(datasets):
     if i % 12 != int(shard):
          continue
     print(dataset, dataset.num_examples)
-    print(dataset.examples)
     for idx, example in enumerate(tqdm(dataset.examples)):
         source_sentence = example.src
         target_sentence = example.tgt
-        print(source_sentence, target_sentence)
         config, tokenizer, model = checkpoint_dict[f"{dataset.src_lang}-{dataset.tgt_lang}"]
         input_src = tokenizer(source_sentence, return_tensors="pt", truncation=True, max_length=128, padding='max_length')
         input_tgt = tokenizer(target_sentence, return_tensors="pt", truncation=True, max_length=128, padding='max_length')
