@@ -1,5 +1,5 @@
 from transformers import XLMRobertaTokenizer, TrainingArguments, Trainer
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from typing import List, Optional, Tuple, Union
 import torch
 import logging
@@ -125,14 +125,14 @@ tokenized_data_ref = tokenizer(ref_side, truncation=True, padding='max_length', 
 training_data = CustomDataset(tokenized_data_src, tokenized_data_ref, labels)
 
 training_args = TrainingArguments(
-    f'experiments/supervised_baseline_europarl/checkpoints_{args.lang_pair}_{args.lr}_{len(source_side)}' if args.dataset == "europarl" else f'experiments/supervised_baseline/checkpoints_{args.lang_pair}_{args.lr}', 
+    f'experiments/supervised_baseline_europarl/checkpoints_{args.lang_pair}_dynamic_{len(source_side)}' if args.dataset == "europarl" else f'experiments/supervised_baseline/checkpoints_{args.lang_pair}_{args.lr}', 
     evaluation_strategy='no',
     save_strategy='epoch',       
     learning_rate=args.lr, 
     num_train_epochs=args.epochs,
     per_device_train_batch_size=args.batch_size,
     weight_decay=0.01,
-    lr_scheduler_type='constant', # comment out for dynamic learning rate
+    #lr_scheduler_type='constant', # comment out for dynamic learning rate
 )
 
 trainer = Trainer(
@@ -140,7 +140,7 @@ trainer = Trainer(
     args=training_args,
     train_dataset=training_data,
     tokenizer=tokenizer,
-    data_collator=collate_fn
+    data_collator=collate_fn,
 )
 
 trainer.train()

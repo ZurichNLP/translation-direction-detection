@@ -130,115 +130,116 @@ def load_split(lang_pairs, split_type):
     test_datasets = []
 
     for lang_pair in lang_pairs:
-        ht = load_wmt16_dataset(lang_pair, 'ht')
-        nmt = load_wmt16_dataset(lang_pair, 'nmt')
-        prenmt = load_wmt16_dataset(lang_pair, 'pre-nmt')
+        if lang_pair not in ['de-fr', 'fr-de']:
+            ht = load_wmt16_dataset(lang_pair, 'ht')
+            nmt = load_wmt16_dataset(lang_pair, 'nmt')
+            prenmt = load_wmt16_dataset(lang_pair, 'pre-nmt')
 
-        val_exmpls_ht = []
-        val_exmpls_nmt = []
-        val_exmpls_prenmt = []
+            val_exmpls_ht = []
+            val_exmpls_nmt = []
+            val_exmpls_prenmt = []
 
-        train_exmpls_ht = []
-        train_exmpls_nmt = []
-        train_exmpls_prenmt = []
+            train_exmpls_ht = []
+            train_exmpls_nmt = []
+            train_exmpls_prenmt = []
 
-        test_exmpls_prenmt = []
+            test_exmpls_prenmt = []
 
-        for ex_ht in ht.examples:
-            for ex_nmt in nmt.examples:
-                if len(val_exmpls_ht) < 100:
-                    if ex_nmt.src == ex_ht.src:
-                        val_exmpls_ht.append(ex_ht)
-                        val_exmpls_nmt.append(ex_nmt)
+            for ex_ht in ht.examples:
+                for ex_nmt in nmt.examples:
+                    if len(val_exmpls_ht) < 100:
+                        if ex_nmt.src == ex_ht.src:
+                            val_exmpls_ht.append(ex_ht)
+                            val_exmpls_nmt.append(ex_nmt)
+                            break
+                    elif len(train_exmpls_ht) < 1500:
+                        if ex_nmt.src == ex_ht.src:
+                            train_exmpls_ht.append(ex_ht)
+                            train_exmpls_nmt.append(ex_nmt)
+                            break
+                    else:
                         break
-                elif len(train_exmpls_ht) < 1500:
-                    if ex_nmt.src == ex_ht.src:
-                        train_exmpls_ht.append(ex_ht)
-                        train_exmpls_nmt.append(ex_nmt)
+
+            for ex_ht in val_exmpls_ht:
+                for ex_prenmt in prenmt.examples:
+                    if ex_ht.src == ex_prenmt.src:
+                        val_exmpls_prenmt.append(ex_prenmt)
                         break
-                else:
-                    break
-
-        for ex_ht in val_exmpls_ht:
-            for ex_prenmt in prenmt.examples:
-                if ex_ht.src == ex_prenmt.src:
-                    val_exmpls_prenmt.append(ex_prenmt)
-                    break
-        
-        for ex_ht in train_exmpls_ht:
-            for ex_prenmt in prenmt.examples:
-                if ex_ht.src == ex_prenmt.src:
-                    train_exmpls_prenmt.append(ex_prenmt)
-                    break
-        
-        for ex_prenmt in prenmt.examples[:-1]:
-            if ex_prenmt in val_exmpls_prenmt:
-                continue
-            if ex_prenmt in train_exmpls_prenmt:
-                continue
-            else:
-                test_exmpls_prenmt.append(ex_prenmt)
-
-        print(len(val_exmpls_ht), len(val_exmpls_nmt), len(val_exmpls_prenmt))
-        assert len(val_exmpls_ht) == len(val_exmpls_nmt) == len(val_exmpls_prenmt) == 100
-        print(len(train_exmpls_ht), len(train_exmpls_nmt), len(train_exmpls_prenmt))
-        assert len(train_exmpls_ht) == len(train_exmpls_nmt) == len(train_exmpls_prenmt) <= 1500
-        for i in range(0, len(val_exmpls_ht)):
-            assert val_exmpls_ht[i].src == val_exmpls_nmt[i].src == val_exmpls_prenmt[i].src
-        for i in range(0, len(train_exmpls_ht)):
-            assert train_exmpls_ht[i].src == train_exmpls_nmt[i].src == train_exmpls_prenmt[i].src
-       
-        for _ in [ht, nmt, prenmt]:
-
-            if _.type == 'ht':
-                val_exmpls = val_exmpls_ht
-                train_exmpls = train_exmpls_ht
-            elif _.type == 'nmt':
-                val_exmpls = val_exmpls_nmt
-                train_exmpls = train_exmpls_nmt    
-            elif _.type == 'pre-nmt':
-                val_exmpls = val_exmpls_prenmt
-                train_exmpls = train_exmpls_prenmt
-                test_exmpls = test_exmpls_prenmt        
-
-            val_set = TranslationDataset(
-            name='wmt16',
-            type=_.type,
-            src_lang=_.src_lang,
-            tgt_lang=_.tgt_lang,
-            examples=val_exmpls
-                )
-
-            val_datasets.append(val_set)
-
-            if _.type != 'pre-nmt':
-
-                random.shuffle(train_exmpls)
-
-                train_set = TranslationDataset(
-                name='wmt16',
-                type=_.type,
-                src_lang=_.src_lang,
-                tgt_lang=_.tgt_lang,
-                examples=train_exmpls
-                    )
-
-                train_datasets.append(train_set)
             
-            else:
+            for ex_ht in train_exmpls_ht:
+                for ex_prenmt in prenmt.examples:
+                    if ex_ht.src == ex_prenmt.src:
+                        train_exmpls_prenmt.append(ex_prenmt)
+                        break
+            
+            for ex_prenmt in prenmt.examples[:-1]:
+                if ex_prenmt in val_exmpls_prenmt:
+                    continue
+                if ex_prenmt in train_exmpls_prenmt:
+                    continue
+                else:
+                    test_exmpls_prenmt.append(ex_prenmt)
+            
+            print(len(val_exmpls_ht), len(val_exmpls_nmt), len(val_exmpls_prenmt))
+            assert len(val_exmpls_ht) == len(val_exmpls_nmt) == len(val_exmpls_prenmt) == 100
+            print(len(train_exmpls_ht), len(train_exmpls_nmt), len(train_exmpls_prenmt))
+            assert len(train_exmpls_ht) == len(train_exmpls_nmt) == len(train_exmpls_prenmt) <= 1500
+            for i in range(0, len(val_exmpls_ht)):
+                assert val_exmpls_ht[i].src == val_exmpls_nmt[i].src == val_exmpls_prenmt[i].src
+            for i in range(0, len(train_exmpls_ht)):
+                assert train_exmpls_ht[i].src == train_exmpls_nmt[i].src == train_exmpls_prenmt[i].src
+        
+            for _ in [ht, nmt, prenmt]:
 
-                test_set = TranslationDataset(
+                if _.type == 'ht':
+                    val_exmpls = val_exmpls_ht
+                    train_exmpls = train_exmpls_ht
+                elif _.type == 'nmt':
+                    val_exmpls = val_exmpls_nmt
+                    train_exmpls = train_exmpls_nmt    
+                elif _.type == 'pre-nmt':
+                    val_exmpls = val_exmpls_prenmt
+                    train_exmpls = train_exmpls_prenmt
+                    test_exmpls = test_exmpls_prenmt        
+
+                val_set = TranslationDataset(
                 name='wmt16',
                 type=_.type,
                 src_lang=_.src_lang,
                 tgt_lang=_.tgt_lang,
-                examples=test_exmpls
+                examples=val_exmpls
                     )
 
-                test_datasets.append(test_set)
-        
+                val_datasets.append(val_set)
+
+                if _.type != 'pre-nmt':
+
+                    random.shuffle(train_exmpls)
+
+                    train_set = TranslationDataset(
+                    name='wmt16',
+                    type=_.type,
+                    src_lang=_.src_lang,
+                    tgt_lang=_.tgt_lang,
+                    examples=train_exmpls
+                        )
+
+                    train_datasets.append(train_set)
+                
+                else:
+
+                    test_set = TranslationDataset(
+                    name='wmt16',
+                    type=_.type,
+                    src_lang=_.src_lang,
+                    tgt_lang=_.tgt_lang,
+                    examples=test_exmpls
+                        )
+
+                    test_datasets.append(test_set)
+            
         for wmt_year in ['wmt21', 'wmt22', 'wmt23']:
-            if wmt_year == 'wmt23' and lang_pair in ['de-en', 'en-de', 'cs-en']:
+            if wmt_year == 'wmt23' and lang_pair in ['de-en', 'en-de', 'cs-en', 'fr-de', 'de-fr']:
                 continue
             else:
                 ht = load_wmt21_23_dataset(wmt_year, lang_pair, 'ht')
