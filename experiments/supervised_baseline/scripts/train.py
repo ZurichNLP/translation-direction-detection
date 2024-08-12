@@ -125,7 +125,7 @@ tokenized_data_ref = tokenizer(ref_side, truncation=True, padding='max_length', 
 training_data = CustomDataset(tokenized_data_src, tokenized_data_ref, labels)
 
 training_args = TrainingArguments(
-    f'experiments/supervised_baseline_europarl/checkpoints_{args.lang_pair}_dynamic_{len(source_side)}' if args.dataset == "europarl" else f'experiments/supervised_baseline/checkpoints_{args.lang_pair}_{args.lr}', 
+    f'experiments/supervised_baseline/europarl/checkpoints_{args.lang_pair}_dynamic_{len(source_side)}' if args.dataset == "europarl" else f'experiments/supervised_baseline/wmt/checkpoints_{args.lang_pair}_{args.lr}', 
     evaluation_strategy='no',
     save_strategy='epoch',       
     learning_rate=args.lr, 
