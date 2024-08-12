@@ -284,7 +284,7 @@ def load_split_europarl(lang_pairs, split_type):
             'de-fr' : 222888
         }
     """
-    total_size = 12812 # change according to desired dataset size; 12812 is the size of the smallest direction dataset; 50'000 is for the ones with >100000 examples; 1500 is for the run to compare to wmt models
+    total_size = 12812 # change according to desired dataset size before split; 12812 is the smallest dataset for a direction
     train_size = int(total_size * 0.8) 
     test_size = int(total_size * 0.1)
     val_size = int(total_size * 0.1)
