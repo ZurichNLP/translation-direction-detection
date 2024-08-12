@@ -37,11 +37,11 @@ checkpoints_cs-en_1e-05/checkpoint-700
 logging.basicConfig(level=logging.INFO)
 
 if train_set == 'wmt' and test_set == 'wmt':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_test_scores" / f"scores{shard}").absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "wmt"/ "baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "wmt"/ "baseline_test_scores" / f"scores{shard}").absolute()) 
 elif train_set == "europarl" and test_set == 'wmt':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_test_scores" / f"scores{shard}").absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "europarl"/ "europarl_wmt_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "europarl"/ "europarl_wmt_baseline_test_scores" / f"scores{shard}").absolute()) 
 elif train_set == "europarl" and test_set == 'europarl':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl"/ "europarl_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_baseline_test_scores" / f"scores{shard}").absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "europarl"/ "europarl_baseline_validation_scores" / f"scores{shard}").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "europarl"/ "europarl_baseline_test_scores" / f"scores{shard}").absolute()) 
 
 
 os.makedirs(os.environ["NMTSCORE_CACHE"], exist_ok=True)
@@ -86,7 +86,7 @@ checkpoint_dict = {
     "fr-de": None
 }
 
-checkpoint_dir = f'experiments/supervised_baseline_europarl/{checkpoint}' # TODO: adapt to desired path to checkpoint
+checkpoint_dir = f'experiments/supervised_baseline/europarl/{checkpoint}' if test_set == "europarl" else f'experiments/supervised_baseline/wmt/{checkpoint}'
 config = XLMRobertaConfig.from_pretrained(checkpoint_dir)
 tokenizer = XLMRobertaTokenizer.from_pretrained(checkpoint_dir)
 model = CustomXLMRobertaForSequenceClassification.from_pretrained(checkpoint_dir, config=config).to(device)
