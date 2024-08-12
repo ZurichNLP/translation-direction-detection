@@ -40,27 +40,70 @@ experiments/
 ```
 
 ## Reproducing the baseline
-To train the models that were used in the paper, run for each language pair:
-- `python -m experiments.supervised_baseline.scripts.train cuda:0 cs-en --lr 1e-05`
-- `python -m experiments.supervised_baseline.scripts.train cuda:0 ru-en --lr 1e-05`
-- `python -m experiments.supervised_baseline.scripts.train cuda:0 de-en --lr 1e-05`
+To train the supervised systems on WMT data to reproduce our baseline run the following:
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 cs-en --lr 1e-05 --dataset wmt`
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 ru-en --lr 1e-05 --dataset wmt`
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 de-en --lr 1e-05 --dataset wmt`
 
-Afterwards, use the resulting checkpoints to predict the labels on the test and/or validation set, where the computation is distributed over shards as above:
+Afterwards, use the resulting checkpoints to predict the labels for the test and/or validation set, where the computation is distributed over shards as above:
 
-- `python -m experiments.scripts.run_baseline checkpoints_cs-en_1e-05/checkpoint-700 test 0`
-- `python -m experiments.scripts.run_baseline checkpoints_ru-en_1e-05/checkpoint-700 test 0`
-- `python -m experiments.scripts.run_baseline checkpoints_de-en_1e-05/checkpoint-1400 test 0`
+- `python -m experiments.scripts.run_baseline checkpoints_cs-en_1e-05/checkpoint-700 [0-11] [val/test] wmt wmt`
+- `python -m experiments.scripts.run_baseline checkpoints_ru-en_1e-05/checkpoint-700 [0-11] [val/test] wmt wmt`
+- `python -m experiments.scripts.run_baseline checkpoints_de-en_1e-05/checkpoint-1400 [0-11] [val/test] wmt wmt`
 
 The labeled segment pairs are stored in the following directory structure:
 ```
 experiments/
-└── baseline_test/validation_scores
-    ├── nmtscore_cache0
+└── supervised_baseline/wmt/baseline_[validation/test]_scores/
+    ├── scores0
     │   ├── cs-en_1e-05-checkpoint-700.csv
     │   ├── ru-en_1e-05-checkpoint-700.csv
     │   └── de-en_1e-05-checkpoint-1400.csv
     ...
-    └── nmtscore_cache11
+    └── scores11
+        ...
+```
+
+To reproduce the experiments with the supervised systems that were trained on Europarl data, first, download the Europarl corpus and use the EuroparlExtract package to sort it by translation direction as described in the [README]([url](https://github.com/mustaszewski/europarl-extract?tab=readme-ov-file#europarlextract)) for the language pairs en-de, en-cs and de-fr. Then, move the resulting datasets into the ```experiments/supervised_baseline/data/parallel/``` folder. The directory structure should look as follows:
+```
+experiments/
+└── supervised_baseline/europarl/data/parallel/
+    ├── CS-EN/tab
+    │   ├── 07-09-03-016_082_cs-en.tab
+    │   ├── 07-09-03-017_105_cs-en.tab
+    │   ...
+    ├── DE-EN/tab
+        ...
+    ├── DE-FR/tab
+        ...
+    ├── EN-CS/tab
+        ...
+    ├── EN-DE/tab
+        ...
+    ├── FR-DE/tab
+        ...
+```
+
+Then train the systems as follows and make sure to comment out line 135 in `experiments.supervised_baseline.scripts.train` for cs-en and de-fr:
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 cs-en --dataset europarl`
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 de-fr --dataset europarl`
+- `python -m experiments.supervised_baseline.scripts.train cuda:0 de-en --lr 1e-05 --dataset europarl`
+
+Afterwards, use the resulting checkpoints to predict the labels for the test and/or validation set, where the computation is distributed over shards as above. When running this on the test set, you can choose between the WMT and the Europarl based test sets:
+- `python -m experiments.scripts.run_baseline checkpoints_cs-en_dynamic_20498/checkpoint-6410 [0-11] [val/test] europarl [wmt/europarl]`
+- `python -m experiments.scripts.run_baseline checkpoints_ru-en_dynamic_20498/checkpoint-6410 [0-11] [val/test] europarl [wmt/europarl]`
+- `python -m experiments.scripts.run_baseline checkpoints_de-en_1e-05_20498/checkpoint-6410 [0-11] [val/test] europarl [wmt/europarl]`
+
+The labeled segment pairs are stored in the following directory structure:
+```
+experiments/
+└── supervised_baseline/europarl/europarl_[wmt_]baseline_[validation/test]_scores/
+    ├── scores0
+    │   ├── cs-en_dynamic-checkpoint-6410.csv
+    │   ├── ru-en_dynamic-checkpoint-6410.csv
+    │   └── de-en_1e-05-checkpoint-6410.csv
+    ...
+    └── scores11
         ...
 ```
 
@@ -76,9 +119,10 @@ The following scripts reproduce the tables in the paper:
 - Table 7: `scripts/table_7_examples.py`
 - Table 8: `scripts/table_8_accuracy_doc_ht.py`
 - Table 9: `scripts/table_9_accuracy_doc_nmt.py`
-- Table 14: `scripts/accuracy_baseline.py`
-- Table 17: `scripts/full_stats_table.py`
-- Table 18: `scripts/indirect_stats.py`
+- Table 14-16: `scripts/accuracy_baseline.py`
+- Table 17: `scripts/accuracy_wmt.py`
+- Table 18: `scripts/full_stats_table.py`
+- Table 19: `scripts/indirect_stats.py`
 
 The following script reproduces the hypothesis test described in Section 5.6:
 - `scripts/real_world_hypothesis_test.py`
