@@ -194,17 +194,6 @@ elif split == 'test':
             print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
             print(f"{np.mean([ht_accuracies['average'][i], nmt_accuracies['average'][i]]):.2f} \\\\ ", end="")
         print()
-        if split !=  "test":
-            print(r"\addlinespace")
-            print(r"Macro-Avg. & ", end="")
-            print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
-            print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
-            print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
-            print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
-            print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
-            print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
-            print(f"{np.mean([np.mean(nmt_accuracies['average']), np.mean(ht_accuracies['average'])]):.2f} \\\\ ", end="")
-            print()
         print(r"\bottomrule")
         print(r"\end{tabular}")
 
