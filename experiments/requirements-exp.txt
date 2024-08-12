@@ -1,2 +1,4 @@
 git+https://github.com/mjpost/sacrebleu.git
 datasets==2.16.1
+torch==2.3.1
+accelerate==0.32.1
