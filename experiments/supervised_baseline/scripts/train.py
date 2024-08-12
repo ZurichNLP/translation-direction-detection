@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('accelerator', type=str, help='Choice of accelerator either "cpu" for CPU or "cuda:[0-5]"')
-parser.add_argument('lang_pair', type=str, help='Choose language pair to train on from "cs-en", "de-en" and "ru-en".')
+parser.add_argument('lang_pair', type=str, help='Choose language pair to train on from "cs-en", "de-en" and "ru-en"/"fr-de" (depending on whether you train on WMT or Europarl data).')
 parser.add_argument('--epochs', type=int, default=5, help='Choose number of epochs, e.g.: 3, 5 or 10')
 parser.add_argument('--lr', type=float, default=2e-5, help='Choose a learning rate, e.g.: 1e-5, 2e-5 or 3e-5')
 parser.add_argument('--batch_size', type=int, default=16, help='Choose a batch size, e.g.: 4, 8 or 16')
