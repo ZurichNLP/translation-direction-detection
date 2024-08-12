@@ -15,7 +15,7 @@ from translation_direction_detection.detector import TranslationDirectionDetecto
 
 logging.basicConfig(level=logging.INFO)
 
-os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "baseline_test_scores").absolute()) 
+os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "wmt"/ "baseline_test_scores").absolute()) 
 
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
@@ -32,7 +32,7 @@ unsup = {
 }
 
 # load results
-LANG_PAIRS = ["en-cs", "en-de", "en-ru"]
+LANG_PAIRS = ["en-cs", "en-ru", "en-de"]
 
 for lang_pair in LANG_PAIRS:
     checkpoint_dir = "1e-05/checkpoint-1400" if 'de' in lang_pair else "1e-05/checkpoint-700"
@@ -102,49 +102,90 @@ detector = TranslationDirectionDetector(scorer, use_normalization=USE_NORMALIZAT
 datasets = load_all_datasets()
 datasets = [dataset for dataset in datasets if not dataset.is_indirect and (dataset.type == "nmt" or dataset.type == "ht") and dataset.name != "wmt16"]
 
-forward_accuracies = []
-backward_accuracies = []
-avg_accuracies = []
+ht_accuracies_unsup = {
+    'forward': [],
+    'backward': [],
+    'average': []
+}
 
-for lang_pair in LANG_PAIRS:
-    lang1, lang2 = lang_pair.split("-")
-    forward_datasets = [dataset for dataset in datasets if dataset.translation_direction == f"{lang1}→{lang2}"]
-    forward_accuracy = evaluate_sentence_level(detector, forward_datasets)
-    forward_accuracies.append(forward_accuracy)
-    backward_datasets = [dataset for dataset in datasets if dataset.translation_direction == f"{lang2}→{lang1}"]
-    backward_accuracy = evaluate_sentence_level(detector, backward_datasets)
-    backward_accuracies.append(backward_accuracy)
-    avg_accuracy = (forward_accuracy + backward_accuracy) / 2
-    unsup[lang_pair.replace("-", "")].append(avg_accuracy)
+nmt_accuracies_unsup = {
+    'forward': [],
+    'backward': [],
+    'average': []
+}
+
+for t in ['ht', 'nmt']:
+    for lang_pair in LANG_PAIRS:
+        lang1, lang2 = lang_pair.split("-")
+        forward_datasets = [dataset for dataset in datasets if dataset.translation_direction == f"{lang1}→{lang2}" and dataset.type == t]
+        forward_accuracy = evaluate_sentence_level(detector, forward_datasets)
+        ht_accuracies_unsup['forward'].append(forward_accuracy) if t == 'ht' else nmt_accuracies_unsup['forward'].append(forward_accuracy)
+        backward_datasets = [dataset for dataset in datasets if dataset.translation_direction == f"{lang2}→{lang1}" and dataset.type == t]
+        backward_accuracy = evaluate_sentence_level(detector, backward_datasets)
+        ht_accuracies_unsup['backward'].append(backward_accuracy) if t == 'ht' else nmt_accuracies_unsup['backward'].append(backward_accuracy)
+        avg_accuracy = (forward_accuracy + backward_accuracy) / 2
+        ht_accuracies_unsup['average'].append(avg_accuracy) if t == 'ht' else nmt_accuracies_unsup['average'].append(avg_accuracy)
 print()
 
 # format into table
 r"""
 \begin{tabular}{cccccccc}
 \toprule
- & en\biarrow cs & en\biarrow ru & en\biarrow de\\
+r"& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT} \\"
+r"\cmidrule(lr){2-4} \cmidrule(lr){5-7}"
+r"LP & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\"
 \midrule
-Supervised & tbs & tba & tba \\
-\mbox{Unsupervised (ours)} & tba & tba & tba \\
+en\biarrow cs & tbs & tba & tba & tbs & tba & tba \\
+en\biarrow ru & tba & tba & tba & tbs & tba & tba \\
+en\biarrow de & tba & tba & tba & tbs & tba & tba \\
 \bottomrule
-\end{tabular}
 \end{tabular}
 """
 
-print(r'\begin{tabular}{cccc}')
+print(r'\begin{tabular}{cccccccc}')
 print(r'\toprule')
-print(r' & en\biarrow cs & en\biarrow ru & en\biarrow de\\' )
+print(r"& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT} \\")
+print(r"\cmidrule(lr){2-4} \cmidrule(lr){5-7}")
+print(r"LP & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. & Avg.\\")
 print(r'\midrule')
-print("Supervised" + " & ", end="")
-print(f"{np.mean(sup['encs']):.2f} & ", end="")
-print(f"{np.mean(sup['enru']):.2f} & ", end="")
-print(f"{np.mean(sup['ende']):.2f} \\\\", end="")
+for i, lp in enumerate(LANG_PAIRS):
+    lp = lp.split('-')
+    print(lp[0]+r"\biarrow "+lp[1]+" (sup)" + " & ", end="")
+    print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
+    print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
+    print(f"{ht_accuracies['average'][i]:.2f} &  ", end="")
+    print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
+    print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
+    print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
+    print(f"{np.mean([np.mean(ht_accuracies['average'][i]), np.mean(nmt_accuracies['average'][i])]):.2f} \\\\  ", end="")
+    print()
+    print(lp[0]+r"\biarrow "+lp[1]+" (unsup)" + " & ", end="")
+    print(f"{ht_accuracies_unsup['forward'][i]:.2f} & ", end="")
+    print(f"{ht_accuracies_unsup['backward'][i]:.2f} & ", end="")
+    print(f"{ht_accuracies_unsup['average'][i]:.2f} &  ", end="")
+    print(f"{nmt_accuracies_unsup['forward'][i]:.2f} & ", end="")
+    print(f"{nmt_accuracies_unsup['backward'][i]:.2f} & ", end="")
+    print(f"{nmt_accuracies_unsup['average'][i]:.2f} & ", end="")
+    print(f"{np.mean([np.mean(ht_accuracies_unsup['average'][i]), np.mean(nmt_accuracies_unsup['average'][i])]):.2f} \\\\  ", end="")
+    print()
+print(r"\addlinespace")
+print(r"Macro-Avg. & ", end="")
+print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
+print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
+print(f"{np.mean(ht_accuracies['average']):.2f} &  ", end="")
+print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
+print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
+print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
+print(f"{np.mean([np.mean(nmt_accuracies['average']), np.mean(ht_accuracies['average'])]):.2f} \\\\ ", end="")
 print()
-print(r"\mbox{Unsupervised (ours)}" + " & ", end="")
-print(f"{np.mean(unsup['encs']):.2f} & ", end="")
-print(f"{np.mean(unsup['enru']):.2f} & ", end="")
-print(f"{np.mean(unsup['ende']):.2f} \\\\", end="")
+print(r"Macro-Avg. & ", end="")
+print(f"{np.mean(ht_accuracies_unsup['forward']):.2f} & ", end="")
+print(f"{np.mean(ht_accuracies_unsup['backward']):.2f} & ", end="")
+print(f"{np.mean(ht_accuracies_unsup['average']):.2f} &  ", end="")
+print(f"{np.mean(nmt_accuracies_unsup['forward']):.2f} & ", end="")
+print(f"{np.mean(nmt_accuracies_unsup['backward']):.2f} & ", end="")
+print(f"{np.mean(nmt_accuracies_unsup['average']):.2f} & ", end="")
+print(f"{np.mean([np.mean(nmt_accuracies_unsup['average']), np.mean(ht_accuracies_unsup['average'])]):.2f} \\\\ ", end="")
 print()
 print(r"\bottomrule")
-print(r"\end{tabular}")  
-
+print(r"\end{tabular}")     
