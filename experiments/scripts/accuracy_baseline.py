@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 
 split = sys.argv[1]
-assert split in ['test', 'val']
+assert split in ['test', 'val', 'bias']
 checkpoint_dir = sys.argv[2]
 train_set = sys.argv[3] 
 assert train_set in ['wmt', 'europarl']
@@ -21,11 +21,11 @@ wmt:
 '''
 
 if train_set == 'wmt' and test_set == 'wmt':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_validation_scores").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "wmt_baseline_test_scores" ).absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "wmt"/ "baseline_validation_scores").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "wmt"/ "baseline_test_scores" ).absolute()) 
 elif train_set == "europarl" and test_set == 'wmt':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_validation_scores" ).absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_wmt_baseline_test_scores" ).absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "europarl"/ "europarl_wmt_baseline_validation_scores" ).absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "europarl"/ "europarl_wmt_baseline_test_scores" ).absolute()) 
 elif train_set == "europarl" and test_set == 'europarl':
-    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline_europarl"/ "europarl_baseline_validation_scores").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline_europarl" / "europarl_baseline_test_scores" ).absolute()) 
+    os.environ["NMTSCORE_CACHE"] = str((Path(__file__).parent.parent / "supervised_baseline" / "europarl"/ "europarl_baseline_validation_scores").absolute()) if split == 'val' else str((Path(__file__).parent.parent / "supervised_baseline" / "europarl"/ "europarl_baseline_test_scores" ).absolute()) 
 
 results = pd.DataFrame(columns=['source', 'target', 'type', 'predicted_label', 'gold_label'])
 
@@ -64,7 +64,8 @@ pre_nmt_accuracies = {
 }
 
 print("\n"+checkpoint_dir+":")
-for t in ['ht', 'nmt', 'pre-nmt']:
+test_types = ['ht'] if test_set == "europarl" else ['ht', 'nmt', 'pre-nmt']
+for t in test_types:
     for lang_pair in LANG_PAIRS:
         lang1, lang2 = lang_pair.split("-")
         forward_results = results.loc[(results['gold_label'] == f"{lang1}→{lang2}") & (results['type'] == t)]
@@ -117,11 +118,11 @@ Macro-Avg. & tba & tba & tba & tba & tba & tba & tba & tba & tba & tba \\
 """
 
 if split == 'val':
-    print(r'\begin{tabular}{ccccccccccc}')
+    print(r'\begin{tabular}{ccccccccccc}') if test_set != "europarl" else print(r'\begin{tabular}{cccc}')
     print(r'\toprule')
-    print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}& \multicolumn{3}{c}{Pre-NMT}  \\' )
-    print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}')
-    print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. &  LP Avg.\\')
+    print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}& \multicolumn{3}{c}{Pre-NMT}  \\' ) if test_set != "europarl" else print(r'& \multicolumn{3}{c}{HT}')
+    print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}') if test_set != "europarl" else print(r'\cmidrule(lr){2-4}')
+    print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. &  LP Avg.\\') if test_set != "europarl" else print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg.\\')
     print(r'\midrule')
 
     for i, lang_pair in enumerate(LANG_PAIRS):
@@ -129,28 +130,30 @@ if split == 'val':
         print(lp[0]+r"\biarrow "+lp[1] + " & ", end="")
         print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
         print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
-        print(f"{ht_accuracies['average'][i]:.2f} & ", end="")
-        print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
-        print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
-        print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
-        print(f"{pre_nmt_accuracies['backward'][i]:.2f} & ", end="")
-        print(f"{pre_nmt_accuracies['forward'][i]:.2f} & ", end="")
-        print(f"{pre_nmt_accuracies['average'][i]:.2f} & ", end="")
-        print(f"{np.mean([ht_accuracies['average'][i], pre_nmt_accuracies['average'][i], nmt_accuracies['average'][i]]):.2f} \\\\ ", end="")
+        print(f"{ht_accuracies['average'][i]:.2f} {'& ' if test_set != 'europarl' else ''} ", end="")
+        if test_set != "europarl":
+            print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
+            print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
+            print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
+            print(f"{pre_nmt_accuracies['backward'][i]:.2f} & ", end="")
+            print(f"{pre_nmt_accuracies['forward'][i]:.2f} & ", end="")
+            print(f"{pre_nmt_accuracies['average'][i]:.2f} & ", end="")
+            print(f"{np.mean([ht_accuracies['average'][i], pre_nmt_accuracies['average'][i], nmt_accuracies['average'][i]]):.2f} \\\\ ", end="")
         print()
 
     print(r"\addlinespace")
     print(r"Macro-Avg. & ", end="")
     print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
     print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
-    print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
-    print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
-    print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
-    print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
-    print(f"{np.mean(pre_nmt_accuracies['backward']):.2f} & ", end="")
-    print(f"{np.mean(pre_nmt_accuracies['forward']):.2f} & ", end="")
-    print(f"{np.mean(pre_nmt_accuracies['average']):.2f} & ", end="")
-    print(f"{np.mean([np.mean(pre_nmt_accuracies['average']), np.mean(nmt_accuracies['average']), np.mean(ht_accuracies['average'])]):.2f} \\\\ ", end="")
+    print(f"{np.mean(ht_accuracies['average']):.2f} {'& ' if test_set != 'europarl' else ''} ", end="")
+    if test_set != "europarl":
+        print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
+        print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
+        print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
+        print(f"{np.mean(pre_nmt_accuracies['backward']):.2f} & ", end="")
+        print(f"{np.mean(pre_nmt_accuracies['forward']):.2f} & ", end="")
+        print(f"{np.mean(pre_nmt_accuracies['average']):.2f} & ", end="")
+        print(f"{np.mean([np.mean(pre_nmt_accuracies['average']), np.mean(nmt_accuracies['average']), np.mean(ht_accuracies['average'])]):.2f} \\\\ ", end="")
     print()
     print(r"\bottomrule")
     print(r"\end{tabular}")     
@@ -172,11 +175,11 @@ elif split == 'test':
     \bottomrule
     \end{tabular}
     """
-    print(r'\begin{tabular}{ccccccc}')
+    print(r'\begin{tabular}{ccccccc}') if test_set != "europarl" else print(r'\begin{tabular}{cccc}')
     print(r'\toprule')
-    print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}  \\' )
-    print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}')
-    print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
+    print(r'& \multicolumn{3}{c}{HT} & \multicolumn{3}{c}{NMT}  \\' ) if test_set != "europarl" else print(r'& \multicolumn{3}{c}{HT} \\' )
+    print(r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}')  if test_set != "europarl" else print(r'\cmidrule(lr){2-4}') 
+    print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')  if test_set != "europarl" else print(r'Language Pair & \(\rightarrow\) & \(\leftarrow\) & Avg. \\')
     print(r'\midrule')
 
     for i, lang_pair in enumerate(LANG_PAIRS):
@@ -184,22 +187,40 @@ elif split == 'test':
         print(lp[0]+r"\biarrow "+lp[1] + " & ", end="")
         print(f"{ht_accuracies['forward'][i]:.2f} & ", end="")
         print(f"{ht_accuracies['backward'][i]:.2f} & ", end="")
-        print(f"{ht_accuracies['average'][i]:.2f} & ", end="")
-        print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
-        print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
-        print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
-        print(f"{np.mean([ht_accuracies['average'][i], nmt_accuracies['average'][i]]):.2f} \\\\ ", end="")
+        print(f"{ht_accuracies['average'][i]:.2f} {'&' if test_set !=  'europarl' else ''} ", end="")
+        if test_set !=  "europarl":
+            print(f"{nmt_accuracies['forward'][i]:.2f} & ", end="")
+            print(f"{nmt_accuracies['backward'][i]:.2f} & ", end="")
+            print(f"{nmt_accuracies['average'][i]:.2f} & ", end="")
+            print(f"{np.mean([ht_accuracies['average'][i], nmt_accuracies['average'][i]]):.2f} \\\\ ", end="")
         print()
+        if split !=  "test":
+            print(r"\addlinespace")
+            print(r"Macro-Avg. & ", end="")
+            print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
+            print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
+            print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
+            print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
+            print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
+            print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
+            print(f"{np.mean([np.mean(nmt_accuracies['average']), np.mean(ht_accuracies['average'])]):.2f} \\\\ ", end="")
+            print()
+        print(r"\bottomrule")
+        print(r"\end{tabular}")
 
-    print(r"\addlinespace")
-    print(r"Macro-Avg. & ", end="")
-    print(f"{np.mean(ht_accuracies['forward']):.2f} & ", end="")
-    print(f"{np.mean(ht_accuracies['backward']):.2f} & ", end="")
-    print(f"{np.mean(ht_accuracies['average']):.2f} & ", end="")
-    print(f"{np.mean(nmt_accuracies['forward']):.2f} & ", end="")
-    print(f"{np.mean(nmt_accuracies['backward']):.2f} & ", end="")
-    print(f"{np.mean(nmt_accuracies['average']):.2f} & ", end="")
-    print(f"{np.mean([np.mean(nmt_accuracies['average']), np.mean(ht_accuracies['average'])]):.2f} \\\\ ", end="")
+elif split == 'bias':
+    
+    print(r'\begin{tabular}{ccc}')
+    print(r'\toprule')
+    print(fr'Language Pair & HT & {"NMT" if test_set != "europarl" else ""}'+r'  \\' )
+    print(r'\midrule')
+
+    for i, lang_pair in enumerate(LANG_PAIRS):
+        lp = lang_pair.split('-')
+        print(lp[0]+r"\biarrow "+lp[1] + " & ", end="")
+        print(f"{abs(ht_accuracies['forward'][i]-ht_accuracies['backward'][i])/100:.3f} {'&' if test_set !=  'europarl' else ''} ", end="")
+        if test_set !=  "europarl":
+            print(f"{abs(nmt_accuracies['forward'][i]-nmt_accuracies['backward'][i])/100:.3f}  ", end="")
     print()
     print(r"\bottomrule")
-    print(r"\end{tabular}")     
+    print(r"\end{tabular}")
