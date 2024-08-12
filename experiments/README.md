@@ -64,7 +64,7 @@ experiments/
         ...
 ```
 
-To reproduce the experiments with the supervised systems that were trained on Europarl data, first, download the Europarl corpus and use the EuroparlExtract package to sort it by translation direction as described in the [README]([url](https://github.com/mustaszewski/europarl-extract?tab=readme-ov-file#europarlextract)) for the language pairs en-de, en-cs and de-fr. Then, move the resulting datasets into the ```experiments/supervised_baseline/data/parallel/``` folder. The directory structure should look as follows:
+To reproduce the experiments with the supervised systems that were trained on Europarl data, first, download the Europarl corpus (Koehn, 2005) and use the EuroparlExtract (Ustaszewski, 2018) package to sort it by translation direction as described in the [README]([url](https://github.com/mustaszewski/europarl-extract?tab=readme-ov-file#europarlextract)) for the language pairs en-de, en-cs and de-fr. Then, move the resulting datasets into the ```experiments/supervised_baseline/data/parallel/``` folder. The directory structure should look as follows:
 ```
 experiments/
 └── supervised_baseline/europarl/data/parallel/
@@ -105,6 +105,11 @@ experiments/
     ...
     └── scores11
         ...
+```
+
+The `scripts/accuracy_baseline.py` can be run as follows, with the desired argument combination:
+```
+python -m experiments.scripts.accuracy_baseline [val/test] [1e-05/dynamic][_20498]/checkpoint-[1400/1750/6410] [wmt/europarl] [wmt/europarl] [en-de/cs-en/en-ru/de-fr]
 ```
 
 ## Reproducing the tables in the paper
