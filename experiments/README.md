@@ -47,9 +47,9 @@ To train the supervised systems on WMT data to reproduce our baseline run the fo
 
 Afterwards, use the resulting checkpoints to predict the labels for the test and/or validation set, where the computation is distributed over shards as above:
 
-- `python -m experiments.scripts.run_baseline checkpoints_cs-en_1e-05/checkpoint-700 [0-11] [val/test] wmt wmt`
-- `python -m experiments.scripts.run_baseline checkpoints_ru-en_1e-05/checkpoint-700 [0-11] [val/test] wmt wmt`
-- `python -m experiments.scripts.run_baseline checkpoints_de-en_1e-05/checkpoint-1400 [0-11] [val/test] wmt wmt`
+- `python -m experiments.scripts.run_baseline [0-11] [val/test] checkpoints_cs-en_1e-05/checkpoint-700 wmt wmt`
+- `python -m experiments.scripts.run_baseline [0-11] [val/test] checkpoints_ru-en_1e-05/checkpoint-700 wmt wmt`
+- `python -m experiments.scripts.run_baseline [0-11] [val/test] checkpoints_de-en_1e-05/checkpoint-1400 wmt wmt`
 
 The labeled segment pairs are stored in the following directory structure:
 ```
