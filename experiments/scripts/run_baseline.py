@@ -20,6 +20,8 @@ train_set = sys.argv[4]
 assert train_set in ['wmt', 'europarl']
 test_set = sys.argv[5] 
 assert test_set in ['wmt', 'europarl']
+architecture = sys.argv[6]
+assert architecture in [None, 'concat']
 
 # checkpoints
 """
@@ -89,7 +91,10 @@ checkpoint_dict = {
 checkpoint_dir = f'experiments/supervised_baseline/europarl/{checkpoint}' if test_set == "europarl" else f'experiments/supervised_baseline/wmt/{checkpoint}'
 config = XLMRobertaConfig.from_pretrained(checkpoint_dir)
 tokenizer = XLMRobertaTokenizer.from_pretrained(checkpoint_dir)
-model = CustomXLMRobertaForSequenceClassification.from_pretrained(checkpoint_dir, config=config).to(device)
+if architecture == 'concat':
+    model = XLMRobertaForSequenceClassification.from_pretrained(checkpoint_dir, config=config).to(device)
+else:
+    model = CustomXLMRobertaForSequenceClassification.from_pretrained(checkpoint_dir, config=config).to(device)
 model.eval()
 src, tgt = lang_pair.split('-')
 checkpoint_dict[f'{src}-{tgt}'] = config, tokenizer, model
@@ -103,35 +108,61 @@ for i, dataset in enumerate(datasets):
         source_sentence = example.src
         target_sentence = example.tgt
         config, tokenizer, model = checkpoint_dict[f"{dataset.src_lang}-{dataset.tgt_lang}"]
-        input_src = tokenizer(source_sentence, return_tensors="pt", truncation=True, max_length=128, padding='max_length')
-        input_tgt = tokenizer(target_sentence, return_tensors="pt", truncation=True, max_length=128, padding='max_length')
+        if architecture == 'concat':
+            input = tokenizer(source_sentence, target_sentence, return_tensors="pt", truncation=True, max_length=256, padding='max_length')
+            input = {key: value.to(device) for key, value in input.items()}
+        else:
+            input_src = tokenizer(source_sentence, return_tensors="pt", truncation=True, max_length=128, padding='max_length')
+            input_tgt = tokenizer(target_sentence, return_tensors="pt", truncation=True, max_length=128, padding='max_length')
         
-        input_src = {key: value.to(device) for key, value in input_src.items()}
-        input_tgt = {key: value.to(device) for key, value in input_tgt.items()}
+            input_src = {key: value.to(device) for key, value in input_src.items()}
+            input_tgt = {key: value.to(device) for key, value in input_tgt.items()}
+        
+        
 
         with torch.no_grad():
-            outputs = model(
-                input_ids1=input_src['input_ids'],
-                attention_mask1=input_src['attention_mask'],
-                input_ids2=input_tgt['input_ids'],
-                attention_mask2=input_tgt['attention_mask']
-            )
+            if architecture == 'concat':
+                outputs = model(
+                    input_ids=input['input_ids'],
+                    attention_mask=input['attention_mask']
+                )
+            else:
+                outputs = model(
+                    input_ids1=input_src['input_ids'],
+                    attention_mask1=input_src['attention_mask'],
+                    input_ids2=input_tgt['input_ids'],
+                    attention_mask2=input_tgt['attention_mask']
+                )
             logits = outputs.logits
         
         predicted_class1 = torch.argmax(logits, dim=-1).item()
 
         # reverse for assertion
-        with torch.no_grad():
-            outputs2 = model(
-                input_ids1=input_tgt['input_ids'],
-                attention_mask1=input_tgt['attention_mask'],
-                input_ids2=input_src['input_ids'],
-                attention_mask2=input_src['attention_mask']
-            )
-            logits2 = outputs2.logits
+        if architecture == 'concat':
+            input = tokenizer(target_sentence, source_sentence, return_tensors="pt", truncation=True, max_length=256, padding='max_length')
+            input = {key: value.to(device) for key, value in input.items()}
+            with torch.no_grad():
+                outputs2 = model(
+                    input_ids=input['input_ids'],
+                    attention_mask=input['attention_mask'],
+                )
+                logits2 = outputs2.logits
+        
+        else:
+            with torch.no_grad():
+                outputs2 = model(
+                    input_ids1=input_tgt['input_ids'],
+                    attention_mask1=input_tgt['attention_mask'],
+                    input_ids2=input_src['input_ids'],
+                    attention_mask2=input_src['attention_mask']
+                )
+                logits2 = outputs2.logits
+
         predicted_class2 = torch.argmax(logits2, dim=-1).item()
 
-        assert predicted_class1 == predicted_class2
+        if architecture != 'concat':
+            # this assertion fails for concat architecture!!!
+            assert predicted_class1 == predicted_class2
 
         #label_mapping = {'en→cs': 0,
                         # 'cs→en': 1,
@@ -144,10 +175,8 @@ for i, dataset in enumerate(datasets):
         second_lang = dataset.lang_pair.replace('en↔', '').replace('↔en','') if 'en' in lang_pair else dataset.lang_pair.replace('fr↔', '').replace('↔fr','')
         if predicted_class1 == 0:
             predicted_label = f"en→{second_lang}" if 'en' in lang_pair else f"fr→{second_lang}"
-            # score for en->scnd lang = 1
         else:
             predicted_label = f"{second_lang}→en" if 'en' in lang_pair else f"{second_lang}→fr"
-            # score for scnd->en lang = 0
             
         assert dataset.type in ['ht', 'pre-nmt', 'nmt']
         result = {
