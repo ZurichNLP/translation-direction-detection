@@ -1,5 +1,6 @@
-from transformers import XLMRobertaTokenizer, TrainingArguments, Trainer
+from transformers import XLMRobertaTokenizer, TrainingArguments, Trainer, XLMRobertaForSequenceClassification, DataCollatorWithPadding
 from torch.utils.data import Dataset, DataLoader
+from datasets import Dataset as HFDataset
 from typing import List, Optional, Tuple, Union
 import torch
 import logging
@@ -13,9 +14,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('accelerator', type=str, help='Choice of accelerator either "cpu" for CPU or "cuda:[0-5]"')
 parser.add_argument('lang_pair', type=str, help='Choose language pair to train on from "cs-en", "de-en" and "ru-en"/"fr-de" (depending on whether you train on WMT or Europarl data).')
 parser.add_argument('--epochs', type=int, default=5, help='Choose number of epochs, e.g.: 3, 5 or 10')
-parser.add_argument('--lr', type=float, default=2e-5, help='Choose a learning rate, e.g.: 1e-5, 2e-5 or 3e-5')
+parser.add_argument('--lr', type=float, default='dynamic', help='Choose a learning rate, e.g.: 1e-5, 2e-5 or 3e-5')
 parser.add_argument('--batch_size', type=int, default=16, help='Choose a batch size, e.g.: 4, 8 or 16')
 parser.add_argument('--dataset', type=str, default='wmt', help='Choose a dataset to train on, e.g.: wmt or europarl')
+parser.add_argument('--architecture', type=str, default='siamese', help='Choose a architecture to train on, e.g.: concat or siamese')
 args = parser.parse_args()
 
 set_seed(42)
@@ -114,33 +116,92 @@ num_labels = len(torch.unique(labels))
 assert num_labels == 2
 
 model_checkpoint = 'xlm-roberta-base'
-model = CustomXLMRobertaForSequenceClassification.from_pretrained(model_checkpoint, num_labels=num_labels)
+if args.architecture == 'concat':
+    model = XLMRobertaForSequenceClassification.from_pretrained(model_checkpoint, num_labels=num_labels)
+else:
+    model = CustomXLMRobertaForSequenceClassification.from_pretrained(model_checkpoint, num_labels=num_labels)
+
 model.to(device)
 
 tokenizer = XLMRobertaTokenizer.from_pretrained(model_checkpoint)
 
-tokenized_data_src = tokenizer(source_side, truncation=True, padding='max_length', max_length=128, return_tensors='pt') #input_ids, token_type_ids, attention_mask
-tokenized_data_ref = tokenizer(ref_side, truncation=True, padding='max_length', max_length=128, return_tensors='pt') #input_ids, token_type_ids, attention_mask
+if args.architecture == 'concat':
+    """
+    # this approach results in models that rely heavily on the input order of the sentences
+    tokenized_data = tokenizer(source_side, ref_side, truncation=True, padding='max_length', max_length=256, return_tensors='pt') #input_ids, token_type_ids, attention_mask
+    tokenized_data["labels"] = torch.tensor(labels)
+    data_dict = {key: tokenized_data[key].tolist() for key in tokenized_data}
+    training_data = HFDataset.from_dict(data_dict)
+    """
 
-training_data = CustomDataset(tokenized_data_src, tokenized_data_ref, labels)
+    """
+    # this approach flips the input order and flips the labels for the second half of the dataset in order to avoit the model to rely on the input order
+    # this approach results in a model that is biased towards one translation direction
+    half = len(source_side) // 2
+    first_half = source_side[:half] + ref_side[half:]
+    second_half = ref_side[:half] + source_side[half:]
+    tokenized_data = tokenizer(first_half, second_half, truncation=True, padding='max_length', max_length=256, return_tensors='pt') #input_ids, token_type_ids, attention_mask
+    tokenized_data["labels"] = torch.cat([
+        labels[:half],
+        1 - labels[half:]  # Flip labels for reversed order
+    ])
+    data_dict = {key: tokenized_data[key].tolist() for key in tokenized_data}
+    training_data = HFDataset.from_dict(tokenized_data)
+    """
 
-training_args = TrainingArguments(
-    f'experiments/supervised_baseline/europarl/checkpoints_{args.lang_pair}_dynamic_{len(source_side)}' if args.dataset == "europarl" else f'experiments/supervised_baseline/wmt/checkpoints_{args.lang_pair}_{args.lr}', 
-    evaluation_strategy='no',
-    save_strategy='epoch',       
-    learning_rate=args.lr, 
-    num_train_epochs=args.epochs,
-    per_device_train_batch_size=args.batch_size,
-    weight_decay=0.01,
-    #lr_scheduler_type='constant', # comment out for dynamic learning rate
-)
+    # this approach concats the src and ref once in one dir and once in the other dir and both is used for training
+    # this model is then trained on double the data than the other approaches
+    # this approach results in models that rely on the input order of the sentences
+    src_side_both_dirs = []
+    ref_side_both_dirs = []
+    labels_both_dirs = []
+
+    for src, ref in zip(source_side, ref_side):
+        src_side_both_dirs.append(src)
+        ref_side_both_dirs.append(ref)
+        src_side_both_dirs.append(ref)
+        ref_side_both_dirs.append(src)
+        labels_both_dirs.append(label_mapping[d.translation_direction])
+        labels_both_dirs.append(1 - label_mapping[d.translation_direction])
+        
+    tokenized_data = tokenizer(src_side_both_dirs, ref_side_both_dirs, truncation=True, padding='max_length', max_length=256, return_tensors='pt') #input_ids, token_type_ids, attention_mask
+    tokenized_data["labels"] = torch.tensor(labels_both_dirs)
+    data_dict = {key: tokenized_data[key].tolist() for key in tokenized_data}
+    training_data = HFDataset.from_dict(data_dict)
+
+
+else:
+    tokenized_data_src = tokenizer(source_side, truncation=True, padding='max_length', max_length=128, return_tensors='pt') #input_ids, token_type_ids, attention_mask
+    tokenized_data_ref = tokenizer(ref_side, truncation=True, padding='max_length', max_length=128, return_tensors='pt') #input_ids, token_type_ids, attention_mask
+    training_data = CustomDataset(tokenized_data_src, tokenized_data_ref, labels)
+
+if args.lr != 'dynamic':
+    training_args = TrainingArguments(
+        f'experiments/supervised_baseline/europarl/checkpoints_{args.lang_pair}_dynamic_{len(source_side)}' if args.dataset == "europarl" else f'experiments/supervised_baseline/wmt/checkpoints_{args.lang_pair}_{args.lr}', 
+        evaluation_strategy='no',
+        save_strategy='epoch',       
+        learning_rate=args.lr, 
+        num_train_epochs=args.epochs,
+        per_device_train_batch_size=args.batch_size,
+        weight_decay=0.01,
+        lr_scheduler_type='constant',
+    )
+else:
+    training_args = TrainingArguments(
+        f'experiments/supervised_baseline/europarl/checkpoints_{args.lang_pair}_dynamic_{len(source_side)}' if args.dataset == "europarl" else f'experiments/supervised_baseline/wmt/checkpoints_{args.lang_pair}_dynamic', 
+        evaluation_strategy='no',
+        save_strategy='epoch',       
+        num_train_epochs=args.epochs,
+        per_device_train_batch_size=args.batch_size,
+        weight_decay=0.01,
+    )
 
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=training_data,
     tokenizer=tokenizer,
-    data_collator=collate_fn,
+    data_collator=collate_fn if not args.architecture == 'concat' else None,
 )
 
 trainer.train()
