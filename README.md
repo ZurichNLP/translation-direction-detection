@@ -70,12 +70,24 @@ MIT License
 
 ## Citation
 ```bibtex
-@misc{wastl2024machine,
-      title={Machine Translation Models are Zero-Shot Detectors of Translation Direction}, 
-      author={Michelle Wastl and Jannis Vamvas and Rico Sennrich},
-      year={2024},
-      eprint={2401.06769},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
+@inproceedings{wastl-etal-2025-machine,
+    title = "Machine Translation Models are Zero-Shot Detectors of Translation Direction",
+    author = "Wastl, Michelle  and
+      Vamvas, Jannis  and
+      Sennrich, Rico",
+    editor = "Che, Wanxiang  and
+      Nabende, Joyce  and
+      Shutova, Ekaterina  and
+      Pilehvar, Mohammad Taher",
+    booktitle = "Findings of the Association for Computational Linguistics: ACL 2025",
+    month = jul,
+    year = "2025",
+    address = "Vienna, Austria",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2025.findings-acl.59/",
+    doi = "10.18653/v1/2025.findings-acl.59",
+    pages = "1054--1074",
+    ISBN = "979-8-89176-256-5",
+    abstract = "Detecting the translation direction of parallel text has applications for machine translation training and evaluation, but also has forensic applications, such as resolving plagiarism or forgery allegations. In this work, we explore an unsupervised approach to translation direction detection based on the simple hypothesis that $p(translation|original)>p(original|translation)$, motivated by the well-known simplification effect in translationese or machine-translationese. In experiments with multilingual machine translation models across 20 translation directions, we confirm the effectiveness of the approach for high-resource language pairs, achieving document-level accuracies of 82{--}96{\%} for NMT-produced translations, and 60{--}81{\%} for human translations, depending on the model used."
 }
 ```
