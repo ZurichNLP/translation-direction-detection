@@ -3,8 +3,9 @@
 
 This repository contains the code for the paper "Machine Translation Models are Zero-Shot Detectors of Translation Direction".
 
-**Paper: [http://arxiv.org/abs/2401.06769](http://arxiv.org/abs/2401.06769)**  
-**Demo: [https://huggingface.co/spaces/ZurichNLP/translation-direction-detection](https://huggingface.co/spaces/ZurichNLP/translation-direction-detection)**
+[![Paper](https://img.shields.io/badge/📄%20ACL-Paper-B31B1B.svg)](https://aclanthology.org/2025.findings-acl.59/)
+[![Demo](https://img.shields.io/badge/🤗-Demo-yellow.svg)](https://huggingface.co/spaces/ZurichNLP/translation-direction-detection)
+
 
 ## Installation
 - Requirements: Python >= 3.11, PyTorch
